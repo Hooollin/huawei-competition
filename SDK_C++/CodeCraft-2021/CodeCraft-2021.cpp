@@ -21,6 +21,8 @@ int addcount = 0;
 int delcount = 0;
 #endif
 
+int serverNum = 0;
+
 using namespace std;
 
 class Node{
@@ -95,9 +97,9 @@ class VirtualMachineModel{
         }
 };
 
+// 这四行放在sever和virtual machine之前
 map<string, ServerModel> mServerModels; // 所有服务器型号； key: type -> value: 服务器型号
 map<string, VirtualMachineModel> mVirtualMachineModels; // 所有虚拟机型号； key: type -> value: 虚拟机型号
-
 
 vector<ServerModel> vServerModels; 
 vector<VirtualMachineModel> vVirtualMachineModels;
@@ -286,8 +288,18 @@ void initializeOperationVector(){
     vOperations.resize(0);
 }
 
+
+
+// purchase时获取服务器编号
+int getServerNum(){
+    return serverNum++;
+}
+
 void solve(){
     
+    for(auto &op : vOperations){
+
+    }
 }
 
 int main()
