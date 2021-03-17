@@ -11,8 +11,8 @@
 #define DEBUG
 
 #ifdef DEBUG
-    int addcount = 0;
-    int delcount = 0;
+int addcount = 0;
+int delcount = 0;
 #endif
 
 using namespace std;
@@ -245,7 +245,7 @@ void readOperation(){
 
     ss >> lp;
     ss >> type;
-    
+
     type.pop_back();
     OP op;
     if(type == "add"){
