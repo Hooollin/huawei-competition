@@ -5,7 +5,15 @@
 #include <sstream>
 #include <string>
 
-//#define DEBUG
+#define ADD 1
+#define DEL 2
+
+#define DEBUG
+
+#ifdef DEBUG
+    int addcount = 0;
+    int delcount = 0;
+#endif
 
 using namespace std;
 
@@ -156,45 +164,15 @@ class VirtualMachine : VirtualMachineModel{
         }
 };
 
-
-class AddOP{
+class OP{
     public:
-        string type;    //所需虚拟机的类型
-        int id;         //新增虚拟机的id
-        AddOP(){
-
-        }
-        AddOP(string type, int id){
-            this->type = type;
-            this->id = id;
-        }
-
-        string tostring(){
-            return "AddOP{type: " + this->type
-                + ", id: " + to_string(this->id)
-                + "}";
-        }
+        int opType;
+        int id;
+        string machineType;
+        OP(){}
 };
 
-class DelOP{
-    public:
-        int id;         //移除虚拟机的id
-        DelOP(){
-
-        }
-        DelOP(int id){
-            this->id = id;
-        }
-
-        string tostring(){
-            return "DelOP{id: " + to_string(this->id)
-                + "}";
-        }
-};
-
-vector<AddOP> vAddOperations; // 所有新建虚拟机的操作
-vector<DelOP> vDelOperations; // 所有删除虚拟机的操作
-
+vector<OP> vOperations;
 map<int, int> mVirtualMachineServer; //key: virtual machine id; value: server id;
 
 void readServerModel(){
@@ -267,43 +245,39 @@ void readOperation(){
 
     ss >> lp;
     ss >> type;
-
+    
     type.pop_back();
+    OP op;
     if(type == "add"){
-        AddOP addop;
+        op.opType = ADD;
         string vmtype;
         ss >> vmtype;
         vmtype.pop_back();
-        addop.type = vmtype;
-        ss >> addop.id;
-        vAddOperations.push_back(addop);
+        op.machineType = vmtype;
+        ss >> op.id;
 #ifdef DEBUG
-        //cout << addop.tostring() << endl;
+        addcount += 1;
 #endif
     }else{
-        DelOP delop;
-        ss >> delop.id;
-        vDelOperations.push_back(delop);
+        op.opType = DEL;
+        ss >> op.id;
 #ifdef DEBUG
-        //cout << delop.tostring() << endl;
+        delcount += 1;
 #endif
     }
+
     ss >> rp;
+    vOperations.push_back(op);
 }
 
 
 void initializeOperationVector(){
-    vAddOperations.clear();
-    vAddOperations.resize(0);
-    vDelOperations.clear();
-    vDelOperations.resize(0);
+    vOperations.clear();
+    vOperations.resize(0);
 }
 
 int main()
 {
-    // TODO:read standard input
-    // TODO:process
-    // TODO:fflush(stdout);
     ios::sync_with_stdio(false);
     cin.tie(0);
     cout.tie(0);
@@ -334,12 +308,13 @@ int main()
         }
         //TODO:algo
     }
+    // TODO:fflush(stdout);
 
 #ifdef DEBUG
     cout << "N: " << vServerModels.size() << endl;
     cout << "M: " << vVirtualMachineModels.size() << endl;
-    cout << "add: " << vAddOperations.size() << endl;
-    cout << "del: " << vDelOperations.size() << endl;
+    cout << "add count: " << addcount << endl;
+    cout << "del count: " << delcount << endl;
 #endif
     return 0;
 }
