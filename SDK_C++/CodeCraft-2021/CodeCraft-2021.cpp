@@ -5,8 +5,14 @@
 #include <sstream>
 #include <string>
 
+// 操作类型
 #define ADD 1
 #define DEL 2
+
+// 虚拟机所在节点：A、B、BOTH
+#define A 3
+#define B 4
+#define BOTH 5
 
 #define DEBUG
 
@@ -17,6 +23,23 @@ int delcount = 0;
 
 using namespace std;
 
+class Node{
+    public:
+        int coreUsed;
+        int coreRem;            //还可以用的核心数
+        int memoryRem;          //还可以用的内存大小
+        int memoryUsed;
+
+        Node(){}
+        string tostring(){
+            return "Node{coreUsed: " + to_string(this->coreUsed)
+                + ", coreRem: " + to_string(this->coreRem)
+                + ", memoryUsed" + to_string(this->memoryUsed)
+                + ", memoryRem" + to_string(this->memoryUsed)
+                + "}";
+        }
+};
+
 class ServerModel{
     public:
         string type;    // 型号
@@ -26,9 +49,7 @@ class ServerModel{
         int deviceCost; // 硬件成本
         int dailyCost;  // 日常成本
 
-        ServerModel(){
-
-        }
+        ServerModel(){}
 
         ServerModel(string type, int core, int memory, int deviceCost, int dailyCost){
             this->type = type;
@@ -84,19 +105,13 @@ vector<VirtualMachineModel> vVirtualMachineModels;
 class Server : ServerModel{
     public:
         int id;			    //服务器编号
-        int ACoreUsed; 	    //A节点已经被使用的核心数
-        int AMemoryUsed;	//A节点已经被使用的内存大小
-        int ACoreRemain; 	    //A节点还可被使用的核心数
-        int AMemoryRemain;	//A节点已经还可被使用的内存大小
-
-        int BCoreUsed;      //B节点已经被使用的核心数
-        int BMemoryUsed;    //B节点已经被使用的内存大小
-        int BCoreRemain; 	    //B节点还可被使用的核心数
-        int BMemoryRemain;	//B节点已经还可被使用的内存大小
+        Node nodeA, nodeB;          //节点A，B
 
         Server(string type, int core, int memory, bool single, int deviceCost, int dailyCost, int id): ServerModel(type, core, memory, deviceCost, dailyCost) {
             this->id = id;
         }
+
+        Server(){}
 
         Server(string type, int id){
 #ifdef DEBUG
@@ -110,32 +125,27 @@ class Server : ServerModel{
             this->dailyCost = model.dailyCost;
             this->deviceCost = deviceCost;
 
-            this->ACoreUsed = 0;
-            this->AMemoryUsed = 0;
-            this->BCoreUsed = 0;
-            this->BMemoryUsed = 0;
-
-            this->ACoreRemain = this->core / 2;
-            this->AMemoryRemain = this->memory / 2;
-            this->BCoreRemain = this->core / 2;
-            this->BMemoryRemain = this->memory / 2;
+            // 节点初始化
+            this->nodeA.coreUsed = 0;
+            this->nodeA.memoryUsed = 0;
+            this->nodeB.coreUsed = 0;
+            this->nodeB.memoryUsed = 0;
+            this->nodeA.coreRem = this->core / 2;
+            this->nodeA.memoryRem = this->memory / 2;
+            this->nodeB.coreRem = this->core / 2;
+            this->nodeB.memoryRem = this->memory / 2;
         }
 
         string tostring(){	
             return "Server: {id: " + to_string(this->id)
                 + ", type: " + this->type
+                + ", " + this->nodeA.tostring()
+                + ", " + this->nodeB.tostring()
                 + ", core: " + to_string(this->core)
-                + ", ACoreUsed: " + to_string(this->ACoreUsed)
-                + ", ACoreRemain: " + to_string(this->ACoreRemain)
-                + ", BCoreUsed: " + to_string(this->BCoreUsed)
-                + ", BCoreRemain: " + to_string(this->BCoreRemain)
                 + ", memory: " + to_string(this->memory) 
-                + ", AMemoryUsed: " + to_string(this->AMemoryUsed) 
-                + ", AMemoryRemain: " + to_string(this->AMemoryRemain) 
-                + ", BMemoryUsed: " + to_string(this->BMemoryUsed) 
-                + ", BMemoryRemain: " + to_string(this->BMemoryRemain) 
                 + ", deviceCost: " + to_string(this->deviceCost) 
-                + ", dailyCost: " + to_string(this->dailyCost) + "}";
+                + ", dailyCost: " + to_string(this->dailyCost)
+                + "}";
         }
 };
 
@@ -173,7 +183,7 @@ class OP{
 };
 
 vector<OP> vOperations;
-map<int, int> mVirtualMachineServer; //key: virtual machine id; value: server id;
+map<int, pair<int, int>> mVirtualMachineServer; //key: virtual machine id; value: {server id, node};
 
 void readServerModel(){
     ServerModel sm;
@@ -276,6 +286,10 @@ void initializeOperationVector(){
     vOperations.resize(0);
 }
 
+void solve(){
+    
+}
+
 int main()
 {
     ios::sync_with_stdio(false);
@@ -307,6 +321,7 @@ int main()
             readOperation();
         }
         //TODO:algo
+        solve();
     }
     // TODO:fflush(stdout);
 
