@@ -21,6 +21,7 @@ int addcount = 0;
 int delcount = 0;
 #endif
 
+// 用来生成服务器编号
 int serverNum = 0;
 
 using namespace std;
@@ -291,7 +292,7 @@ void initializeOperationVector(){
 
 
 // purchase时获取服务器编号
-int getServerNum(){
+int getNextServerId(){
     return serverNum++;
 }
 
