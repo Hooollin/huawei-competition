@@ -326,7 +326,6 @@ int main()
     while(T-- > 0){
         int R;
         cin >> R;
-        cout << R << endl;
         cin.ignore(); //忽略回车
 
         initializeOperationVector();
