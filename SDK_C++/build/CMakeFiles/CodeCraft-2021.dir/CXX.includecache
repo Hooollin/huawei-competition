@@ -1,0 +1,12 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/hollin/Downloads/Chrome下载/SDK/SDK_C++/CodeCraft-2021/CodeCraft-2021.cpp
+iostream
+/Users/hollin/Downloads/Chrome下载/SDK/SDK_C++/CodeCraft-2021/iostream
+

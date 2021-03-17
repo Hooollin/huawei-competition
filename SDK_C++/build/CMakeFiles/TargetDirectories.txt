@@ -1,0 +1,3 @@
+/Users/hollin/Downloads/Chrome下载/SDK/SDK_C++/build/CMakeFiles/rebuild_cache.dir
+/Users/hollin/Downloads/Chrome下载/SDK/SDK_C++/build/CMakeFiles/edit_cache.dir
+/Users/hollin/Downloads/Chrome下载/SDK/SDK_C++/build/CMakeFiles/CodeCraft-2021.dir
