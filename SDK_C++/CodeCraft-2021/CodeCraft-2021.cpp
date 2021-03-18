@@ -4,6 +4,8 @@
 #include <cassert>
 #include <sstream>
 #include <string>
+#include <random>
+#include <algorithm>
 
 // 操作类型
 #define ADD 1
@@ -30,6 +32,7 @@ using namespace std;
 
 
 //***************************DEFINITION**********************************
+
 
 class Node{
     public:
@@ -73,6 +76,7 @@ class ServerModel{
                 + ", deviceCost: " + to_string(this->deviceCost) 
                 + ", dailyCost: " + to_string(this->dailyCost) + "}";
         }
+
 };
 
 class VirtualMachineModel{
@@ -222,6 +226,11 @@ class OP{
         OP(){}
 };
 
+struct cmp{
+    bool operator()(ServerModel &a, ServerModel &b){
+        return 15 * (abs(b.core - b.memory)) + a.core + a.memory < 10 * abs(a.core - a.memory) + b.core + b.memory;
+    }
+};
 
 //***************************END DEFINITION**********************************
 
@@ -296,8 +305,8 @@ void readServerModel(){
 #endif
 
     // 分别添加到map和vector
-    vServerModels.push_back(sm);
     mServerModels[sm.type] = sm;
+    vServerModels.push_back(sm);
 }
 
 void readVirtualMachineModel(){
@@ -468,10 +477,38 @@ int makePurchase(VirtualMachineModel vmd, int today, int T){
         neededMem *= 2;
     }
     int k = -1;
-    for(int i = 0; i < vServerModels.size(); i++){
-        ServerModel sm = vServerModels[i];
-        if(sm.core >= neededCore && sm.memory >= neededMem && (k == -1 || vServerModels[k].deviceCost > sm.deviceCost)){
-            k = i;
+    if(today <= 90 * T / 100){
+        int len = vServerModels.size();
+        int i;
+        if(today % 2){
+            i = 7 * len / 10;
+        }else{
+            i = 7 * len / 10;
+        }
+        for(; i <= len; i++){
+            ServerModel sm = vServerModels[i];
+            if(sm.core >= neededCore && sm.memory >= neededMem && k == -1){
+                k = i;
+                break;
+            }
+        }
+        if(k == -1){
+            while(len){
+                len -= 1;
+                ServerModel sm = vServerModels[len];
+                if(sm.core >= neededCore && sm.memory >= neededMem && k == -1){
+                    k = len;
+                    break;
+                }
+            }       
+        }
+    }else{
+        //找最合适的那个
+        for(int i = 0; i < vServerModels.size(); i++){
+            ServerModel sm = vServerModels[i];
+            if(sm.core >= neededCore && sm.memory >= neededMem && (k == -1 || vServerModels[k].deviceCost > sm.deviceCost)){
+                k = i;
+            }
         }
     }
 
@@ -618,6 +655,7 @@ void releaseRes(OP delop){
 }
 
 void doOutput(){
+    // 输出purchase
     map<string, vector<int>> cnt;
     for(int serverId : vPurchasedServers){
         string type = mSeverIdServer[serverId].getType();
@@ -637,6 +675,8 @@ void doOutput(){
     
     //暂时没有migration
     cout << "(migration, 0)" << endl;
+
+    //输出deployment
     for(auto &p : vDeployments){
         cout << makeDeploymentOutput(p.first, p.second) << endl;
     }
@@ -700,7 +740,10 @@ int main()
         readVirtualMachineModel();
     }
 
+    sort(vServerModels.begin(), vServerModels.end(), cmp());
+    
     cin >> T;
+
     for(int i = 1; i <= T; i++){
         int R;
         cin >> R;
