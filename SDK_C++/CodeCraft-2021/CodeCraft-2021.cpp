@@ -358,14 +358,14 @@ int getNextServerId(){
 // 判断虚拟机是否可以放在服务器中
 bool canPut(Server server, VirtualMachineModel vmd){
     if(vmd.single){
-        return server.nodeA.coreRem > vmd.core && server.nodeA.memoryRem > vmd.memory || server.nodeB.coreRem > vmd.core && server.nodeB.memoryRem > vmd.memory;
+        return (server.nodeA.coreRem >= vmd.core && server.nodeA.memoryRem >= vmd.memory) || (server.nodeB.coreRem >= vmd.core && server.nodeB.memoryRem >= vmd.memory);
     }
-    return server.nodeA.coreRem > vmd.core / 2 && server.nodeB.coreRem > vmd.core / 2 && server.nodeB.memoryRem > vmd.memory / 2 && server.nodeB.memoryRem > vmd.memory / 2;
+    return server.nodeA.coreRem >= (vmd.core / 2) && server.nodeB.coreRem >= (vmd.core / 2) && server.nodeA.memoryRem >= (vmd.memory / 2) && server.nodeB.memoryRem >= (vmd.memory / 2);
 }
 
 float leftProportion(Server server){
-    int totalMemRem = server.nodeA.memoryRem + server.nodeB.memoryRem;
     int totalCoreRem = server.nodeA.coreRem + server.nodeB.coreRem;
+    int totalMemRem = server.nodeA.memoryRem + server.nodeB.memoryRem;
     return (float)totalCoreRem / server.getCore() + (float)totalMemRem / server.getMemory();
 }
 
@@ -399,7 +399,6 @@ int makePurchase(VirtualMachineModel vmd, int today, int T){
         }
     }
     Server purchasedServer(sm.type, newServerId);
-
     vServers.push_back(purchasedServer);
     mServerIdVectorPos[newServerId] = vServers.size() - 1;
     mSeverIdServer[newServerId] = purchasedServer;
@@ -430,7 +429,6 @@ bool compareNode(Node nodeA, Node nodeB, VirtualMachineModel vmd){
         return false;
     }
     // 其他的情况取决于vmd所需的core和memory
-
     if(vmd.core > vmd.memory){
         return nodeA.coreRem > nodeB.coreRem;
     }
