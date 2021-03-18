@@ -141,7 +141,7 @@ class Server : ServerModel{
             nodeB.coreRem = model.core / 2;
             nodeB.memoryRem = model.memory / 2;
         }
-        
+
         string getType(){
             return this->type;
         }
@@ -193,7 +193,7 @@ class VirtualMachine : VirtualMachineModel{
         string getType(){
             return this->type;
         }
-        
+
         int getCore(){
             return this->core;
         }
@@ -482,7 +482,7 @@ void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, int serverId){
         server.nodeB.coreRem -= vmd.core / 2;
         server.nodeB.memoryUsed += vmd.memory / 2;
         server.nodeB.memoryRem -= vmd.memory / 2;
-        
+
         makeDeploymentOutPut(serverId, BOTH);
 
         mVirtualMachineServer[vmid] = {serverId, BOTH};
