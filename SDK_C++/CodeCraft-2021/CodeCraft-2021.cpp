@@ -510,7 +510,6 @@ void releaseRes(OP delop){
 
     pair<int, int> t = mVirtualMachineServer[vmid];
     int serverId = t.first, loc = t.second;
-
     Server &server = mSeverIdServer[serverId];
     if(loc == A){
         server.nodeA.coreRem += vm.getCore();
@@ -533,6 +532,7 @@ void releaseRes(OP delop){
         server.nodeB.memoryRem += vm.getMemory() / 2;
         server.nodeB.memoryUsed -= vm.getMemory() / 2;
     }
+    vServers[mServerIdVectorPos[serverId]] = server;
     mVirtualMachineServer.erase(vmid);
 }
 
