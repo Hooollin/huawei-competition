@@ -14,7 +14,7 @@
 #define B 4
 #define BOTH 5
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 int addcount = 0;
@@ -22,9 +22,11 @@ int delcount = 0;
 #endif
 
 // 用来生成服务器编号
-int serverNum = 0;
+int localServerNum = 0;
+int globalServerNumber = 0;
 
 using namespace std;
+
 
 
 //***************************DEFINITION**********************************
@@ -109,7 +111,8 @@ vector<VirtualMachineModel> vVirtualMachineModels;
 
 class Server : ServerModel{
     public:
-        int id;			    //服务器编号
+        int globalServerId;         //输出时候的serverId
+        int id;			            //本地服务器编号
         Node nodeA, nodeB;          //节点A，B
 
         Server(string type, int core, int memory, int deviceCost, int dailyCost, int id): ServerModel(type, core, memory, deviceCost, dailyCost) {
@@ -222,6 +225,44 @@ class OP{
 
 //***************************END DEFINITION**********************************
 
+
+//***************************FUNCTION DEFINITION**********************************
+
+bool canPut(Server server, VirtualMachineModel vmd);
+
+float leftProportion(Server server);
+
+int selectServer(VirtualMachineModel vmd);
+
+void makePurchaseOutput(string type, int amount);
+
+int makePurchase(VirtualMachineModel vmd, int today, int T);
+
+bool compareNode(Node nodeA, Node nodeB, VirtualMachineModel vmd);
+
+void makeDeploymentOutput(int serverId, int node);
+
+void updateResource(Server &server, int node, int vmcore, int vmmemory, bool isDel);
+
+void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, int serverId);
+
+void allocateServer(OP addop, int today, int T);
+
+void releaseRes(OP delop);
+
+void doOutput();
+
+void migrate();
+
+void solve(int day, int T);
+
+void initializeOperationVector();
+
+int getNextServerId();
+
+//***************************END FUNCTION DEFINITION**********************************
+
+
 //***************************INPUT********************************
 
 vector<OP> vOperations;
@@ -328,6 +369,8 @@ void readOperation(){
 
 // ******************************ALGO*********************************
 
+map<int, int> mlocalServerIdGlobalServerId;
+
 map<int, pair<int, int> > mVirtualMachineServer; // 虚拟机编号到服务器编号以及节点的映射
 vector<Server> vServers;        //所有已经创建的服务器
 map<int, Server> mSeverIdServer;     //服务器编号到服务器的映射
@@ -352,15 +395,38 @@ void initializeOperationVector(){
 
 // purchase时获取服务器编号
 int getNextServerId(){
-    return serverNum++;
+    return localServerNum++;
 }
 
 // 判断虚拟机是否可以放在服务器中
 bool canPut(Server server, VirtualMachineModel vmd){
+    int neededCore = vmd.core, neededMem = vmd.memory;
     if(vmd.single){
-        return (server.nodeA.coreRem >= vmd.core && server.nodeA.memoryRem >= vmd.memory) || (server.nodeB.coreRem >= vmd.core && server.nodeB.memoryRem >= vmd.memory);
+        // 可以放在A节点
+        if(server.nodeA.coreRem >= neededCore && server.nodeA.memoryRem >= neededMem){
+            return true;
+        } 
+        // 可以放在B节点
+        if(server.nodeB.coreRem >= neededCore && server.nodeB.memoryRem >= neededMem){
+            return true;
+        }
+        return false;
+    }else{
+        neededCore /= 2; neededMem /= 2;
+        if(server.nodeA.coreRem < neededCore){
+            return false;
+        }
+        if(server.nodeB.coreRem < neededCore){
+            return false;
+        }
+        if(server.nodeA.memoryRem < neededMem){
+            return false;
+        }
+        if(server.nodeB.memoryRem < neededMem){
+            return false;
+        }
+        return true;
     }
-    return server.nodeA.coreRem >= (vmd.core / 2) && server.nodeB.coreRem >= (vmd.core / 2) && server.nodeA.memoryRem >= (vmd.memory / 2) && server.nodeB.memoryRem >= (vmd.memory / 2);
 }
 
 float leftProportion(Server server){
@@ -391,15 +457,24 @@ void makePurchaseOutput(string type, int amount){
 int makePurchase(VirtualMachineModel vmd, int today, int T){
     int newServerId = getNextServerId();
 
-    // 测试，只买最便宜的
-
+    // 测试，只买合适并且最便宜的
+    int neededCore = vmd.core, neededMem = vmd.memory;
+    if(vmd.single){
+        neededCore *= 2;
+        neededMem *= 2;
+    }
     int k = -1;
     for(int i = 0; i < vServerModels.size(); i++){
-        ServerModel currsm = vServerModels[i];
-        if(currsm.core >= vmd.core && currsm.memory >= vmd.memory && currsm.deviceCost && (k == -1 || vServerModels[k].deviceCost > currsm.deviceCost)){
+        ServerModel sm = vServerModels[i];
+        if(sm.core >= neededCore && sm.memory >= neededMem && (k == -1 || vServerModels[k].deviceCost > sm.deviceCost)){
             k = i;
         }
     }
+
+#ifdef DEBUG
+    assert(k != -1);
+#endif
+
     ServerModel sm = vServerModels[k];
     Server purchasedServer(sm.type, newServerId);
     vServers.push_back(purchasedServer);
@@ -424,11 +499,11 @@ bool compareNode(Node nodeA, Node nodeB, VirtualMachineModel vmd){
 
     //A, B节点都可以放时
     //如果A可以放并且放后core和mem都比B多
-    if(nodeA.coreRem - vmd.core >= nodeB.coreRem && nodeA.memoryRem -vmd.memory > nodeB.memoryRem){
+    if(nodeA.coreRem - vmd.core >= nodeB.coreRem && nodeA.memoryRem -vmd.memory >= nodeB.memoryRem){
         return true;
     }
     //如果B可以放并且放后core和mem都比A多
-    if(nodeB.coreRem - vmd.core >= nodeA.coreRem && nodeB.memoryRem - vmd.memory > nodeA.memoryRem){
+    if(nodeB.coreRem - vmd.core >= nodeA.coreRem && nodeB.memoryRem - vmd.memory >= nodeA.memoryRem){
         return false;
     }
     // 其他的情况取决于vmd所需的core和memory
@@ -438,7 +513,7 @@ bool compareNode(Node nodeA, Node nodeB, VirtualMachineModel vmd){
     return nodeA.memoryRem > nodeB.memoryRem;
 }
 
-void makeDeploymentOutPut(int serverId, int node){
+void makeDeploymentOutput(int serverId, int node){
     string output;
     if(node == A){
         output = "(" + to_string(serverId) + ", A" + ")";
@@ -450,102 +525,107 @@ void makeDeploymentOutPut(int serverId, int node){
     vDeployments.push_back(output);
 }
 
-void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, int serverId){
-    Server &server = mSeverIdServer[serverId];
-    if(vmd.single){
-        //尽可能使A、B节点负载均衡
-        if(compareNode(server.nodeA, server.nodeB, vmd)){
-            server.nodeA.coreRem -= vmd.core;
-            server.nodeA.coreUsed += vmd.core;
-            server.nodeA.memoryRem -= vmd.memory;
-            server.nodeA.memoryUsed += vmd.memory;
+void updateResource(Server &server, int node, int vmcore, int vmmemory, bool isDel){
+    int sign = isDel ? 1 : -1;
+    int corediff = sign * vmcore;
+    int memdiff = sign * vmmemory;
+    switch(node){
+        case A:
+            server.nodeA.coreRem += corediff;
+            server.nodeA.coreUsed -= corediff;
+            server.nodeA.memoryRem += memdiff;
+            server.nodeA.memoryUsed -= memdiff;
+            break;
+        case B:
+            server.nodeB.coreRem += corediff;
+            server.nodeB.coreUsed -= corediff;
+            server.nodeB.memoryRem += memdiff;
+            server.nodeB.memoryUsed -= memdiff;
+            break;
+        case BOTH:
+            corediff /= 2;
+            memdiff /= 2;
 
-            mVirtualMachineServer[vmid] = {serverId, A};
-            makeDeploymentOutPut(serverId, A);
-        }else{
-            server.nodeB.coreRem -= vmd.core;
-            server.nodeB.coreUsed += vmd.core;
-            server.nodeB.memoryRem -= vmd.memory;
-            server.nodeB.memoryUsed += vmd.memory;
+            server.nodeA.coreRem += corediff;
+            server.nodeA.coreUsed -= corediff;
+            server.nodeA.memoryRem += memdiff;
+            server.nodeA.memoryUsed -= memdiff;
 
-            mVirtualMachineServer[vmid] = {serverId, B};
-            makeDeploymentOutPut(serverId, B);
-        }
-    }else{
-        server.nodeA.coreRem -= vmd.core / 2;
-        server.nodeA.coreUsed += vmd.core / 2;
-        server.nodeA.memoryRem -= vmd.memory / 2;
-        server.nodeA.memoryUsed += vmd.memory / 2;
-
-        server.nodeB.coreRem -= vmd.core / 2;
-        server.nodeB.coreUsed += vmd.core / 2;
-        server.nodeB.memoryRem -= vmd.memory / 2;
-        server.nodeB.memoryUsed += vmd.memory / 2;
-
-        makeDeploymentOutPut(serverId, BOTH);
-        mVirtualMachineServer[vmid] = {serverId, BOTH};
+            server.nodeB.coreRem += corediff;
+            server.nodeB.coreUsed -= corediff;
+            server.nodeB.memoryRem += memdiff;
+            server.nodeB.memoryUsed -= memdiff;
+            break;
     }
+}
+
+void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, int serverId){
+    //找到对应的server
+    Server server = mSeverIdServer[serverId];
+    int loc = -1;
+    if(vmd.single){
+        loc = compareNode(server.nodeA, server.nodeB, vmd) ? A : B;
+    }else{
+        loc = BOTH;
+    }
+#ifdef DEBUG
+    assert(canPut(server, vmd));
+#endif
+    updateResource(server, loc, vmd.core, vmd.memory, false);
+    mVirtualMachineServer[vmid] = {serverId, loc};
+    mSeverIdServer[serverId] = server;
     vServers[mServerIdVectorPos[serverId]] = server;
+    makeDeploymentOutput(serverId, loc);
 }
 
 
 void allocateServer(OP addop, int today, int T){
     int vmid = addop.id;
-    // 找到一个最合适的server放虚拟机
-    // 新增虚拟机的型号
+    // 需要新增虚拟机的型号
     VirtualMachineModel vmd = mVirtualMachineModels[addop.machineType];
+    //新增的虚拟机实例
     VirtualMachine vm(addop.machineType, vmid);
     mVmidVirtualMachine[vmid] = vm;
     int serverId = selectServer(vmd);
-    if(serverId == -1){       // 没有可以放下的虚拟机，需要新购买服务器
+    if(serverId == -1){       // 没有合适的服务器，需要新购买服务器
         serverId = makePurchase(vmd, today, T);
     }
     putVirtualMachineToServer(vmd, vmid, serverId);
 }
 
+
+
 void releaseRes(OP delop){
     int vmid = delop.id;
     VirtualMachine vm = mVmidVirtualMachine[vmid];
-    mVmidVirtualMachine.erase(vmid);
 
     pair<int, int> t = mVirtualMachineServer[vmid];
     int serverId = t.first, loc = t.second;
-    Server &server = mSeverIdServer[serverId];
-    if(loc == A){
-        server.nodeA.coreRem += vm.getCore();
-        server.nodeA.coreUsed -= vm.getCore();
-        server.nodeA.memoryRem += vm.getMemory();
-        server.nodeA.memoryUsed -= vm.getMemory();
-    }else if(loc == B){
-        server.nodeB.coreRem += vm.getCore();
-        server.nodeB.coreUsed -= vm.getCore();
-        server.nodeB.memoryRem += vm.getMemory();
-        server.nodeB.memoryUsed -= vm.getMemory();
-    }else{
-        server.nodeA.coreRem += vm.getCore() / 2;
-        server.nodeA.coreUsed -= vm.getCore() / 2;
-        server.nodeA.memoryRem += vm.getMemory() / 2;
-        server.nodeA.memoryUsed -= vm.getMemory() / 2;
+    Server server = mSeverIdServer[serverId];
 
-        server.nodeB.coreRem += vm.getCore() / 2;
-        server.nodeB.coreUsed -= vm.getCore() / 2;
-        server.nodeB.memoryRem += vm.getMemory() / 2;
-        server.nodeB.memoryUsed -= vm.getMemory() / 2;
-    }
+    updateResource(server, loc, vm.getCore(), vm.getMemory(), true);
     vServers[mServerIdVectorPos[serverId]] = server;
+    mSeverIdServer[serverId] = server;
+
+    mVmidVirtualMachine.erase(vmid);
     mVirtualMachineServer.erase(vmid);
 }
 
 void doOutput(){
     cout << "(purchase, " << vPurchases.size() << ")" << endl;
-    for(auto &str : vPurchases){
-        cout << str << endl;
+    if(vPurchases.size() == 0){
+        for(auto &str : vPurchases){
+            cout << str << endl;
+        }
     }
-    //暂时没有migration
-    cout << "(migration, 0)" << endl;
-    for(auto &str : vDeployments){
-        cout << str << endl;
-    }
+//    for(auto &str : vPurchases){
+//        cout << str << endl;
+//    }
+//    //暂时没有migration
+//    cout << "(migration, 0)" << endl;
+//    for(auto &str : vDeployments){
+//        cout << str << endl;
+//    }
 }
 
 void migrate(){
@@ -564,19 +644,24 @@ void solve(int today, int T){
                 releaseRes(op);
                 break;
         }
-        migrate();
     }   
-    //doOutput();
+    migrate();
+#ifndef DEBUG
+    doOutput();
+#endif
 }
 
 bool checkServer(Server server){
     if(server.nodeA.coreRem < 0 || server.nodeB.coreRem < 0){
         return false;
     }
+    if(server.nodeA.memoryRem < 0 || server.nodeB.memoryRem < 0){
+        return false;
+    }
     if(server.nodeA.coreUsed + server.nodeB.coreUsed + server.nodeA.coreRem + server.nodeB.coreRem != server.getCore()){
         return false;
     }
-    if(server.nodeA.memoryUsed + server.nodeA.memoryRem + server.nodeB.memoryRem + server.nodeB.coreUsed != server.getMemory()){
+    if(server.nodeA.memoryUsed + server.nodeA.memoryRem + server.nodeB.memoryRem + server.nodeB.memoryUsed != server.getMemory()){
         return false;
     }
     return true;
@@ -588,8 +673,6 @@ int main()
     ios::sync_with_stdio(false);
     cin.tie(0);
     cout.tie(0);
-
-    char ret;
 
     int N, M, T;
     cin >> N;
@@ -621,6 +704,17 @@ int main()
     cout << "M: " << vVirtualMachineModels.size() << endl;
     cout << "add count: " << addcount << endl;
     cout << "del count: " << delcount << endl;
+    
+    for(auto &s : vServers){
+        int sid = s.id;
+        for(auto p : mVirtualMachineServer){
+            if(p.second.first == sid){
+                cout << p.first << " ";
+            }
+        }
+        cout << endl;
+        cout << s.tostring() << endl;
+    }
 
     for(auto &s : vServers){
         if(!checkServer(s)){
