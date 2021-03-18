@@ -14,7 +14,7 @@
 #define B 4
 #define BOTH 5
 
-//#define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 int addcount = 0;
@@ -392,12 +392,15 @@ int makePurchase(VirtualMachineModel vmd, int today, int T){
     int newServerId = getNextServerId();
 
     // 测试，只买最便宜的
-    ServerModel sm = vServerModels[0];
-    for(ServerModel currsm : vServerModels){
-        if(currsm.core > vmd.core && currsm.memory > vmd.memory && currsm.deviceCost < sm.deviceCost){
-            sm = currsm;
+
+    int k = -1;
+    for(int i = 0; i < vServerModels.size(); i++){
+        ServerModel currsm = vServerModels[i];
+        if(currsm.core >= vmd.core && currsm.memory >= vmd.memory && currsm.deviceCost && (k == -1 || vServerModels[k].deviceCost > currsm.deviceCost)){
+            k = i;
         }
     }
+    ServerModel sm = vServerModels[k];
     Server purchasedServer(sm.type, newServerId);
     vServers.push_back(purchasedServer);
     mServerIdVectorPos[newServerId] = vServers.size() - 1;
@@ -458,34 +461,30 @@ void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, int serverId){
             server.nodeA.memoryUsed += vmd.memory;
 
             mVirtualMachineServer[vmid] = {serverId, A};
-
             makeDeploymentOutPut(serverId, A);
         }else{
-            server.nodeB.coreUsed += vmd.core;
             server.nodeB.coreRem -= vmd.core;
+            server.nodeB.coreUsed += vmd.core;
             server.nodeB.memoryRem -= vmd.memory;
             server.nodeB.memoryUsed += vmd.memory;
 
             mVirtualMachineServer[vmid] = {serverId, B};
-
             makeDeploymentOutPut(serverId, B);
         }
     }else{
-        server.nodeA.coreUsed += vmd.core / 2;
         server.nodeA.coreRem -= vmd.core / 2;
-        server.nodeA.memoryUsed += vmd.memory / 2;
+        server.nodeA.coreUsed += vmd.core / 2;
         server.nodeA.memoryRem -= vmd.memory / 2;
+        server.nodeA.memoryUsed += vmd.memory / 2;
 
-        server.nodeB.coreUsed += vmd.core / 2;
         server.nodeB.coreRem -= vmd.core / 2;
-        server.nodeB.memoryUsed += vmd.memory / 2;
+        server.nodeB.coreUsed += vmd.core / 2;
         server.nodeB.memoryRem -= vmd.memory / 2;
+        server.nodeB.memoryUsed += vmd.memory / 2;
 
         makeDeploymentOutPut(serverId, BOTH);
-
         mVirtualMachineServer[vmid] = {serverId, BOTH};
     }
-
     vServers[mServerIdVectorPos[serverId]] = server;
 }
 
@@ -495,10 +494,8 @@ void allocateServer(OP addop, int today, int T){
     // 找到一个最合适的server放虚拟机
     // 新增虚拟机的型号
     VirtualMachineModel vmd = mVirtualMachineModels[addop.machineType];
-
     VirtualMachine vm(addop.machineType, vmid);
     mVmidVirtualMachine[vmid] = vm;
-
     int serverId = selectServer(vmd);
     if(serverId == -1){       // 没有可以放下的虚拟机，需要新购买服务器
         serverId = makePurchase(vmd, today, T);
@@ -569,9 +566,21 @@ void solve(int today, int T){
         }
         migrate();
     }   
-    doOutput();
+    //doOutput();
 }
 
+bool checkServer(Server server){
+    if(server.nodeA.coreRem < 0 || server.nodeB.coreRem < 0){
+        return false;
+    }
+    if(server.nodeA.coreUsed + server.nodeB.coreUsed + server.nodeA.coreRem + server.nodeB.coreRem != server.getCore()){
+        return false;
+    }
+    if(server.nodeA.memoryUsed + server.nodeA.memoryRem + server.nodeB.memoryRem + server.nodeB.coreUsed != server.getMemory()){
+        return false;
+    }
+    return true;
+}
 // ***********************END ALGO*************************
 //
 int main()
@@ -612,12 +621,19 @@ int main()
     cout << "M: " << vVirtualMachineModels.size() << endl;
     cout << "add count: " << addcount << endl;
     cout << "del count: " << delcount << endl;
-    for(auto &s : vServerModels){
-        cout << s.tostring() << endl;
-    }
+
     for(auto &s : vServers){
-        cout << s.tostring() << endl;
+        if(!checkServer(s)){
+            cout << s.tostring() << endl;
+        }
     }
+
+//    for(auto &s : vServerModels){
+//        cout << s.tostring() << endl;
+//    }
+//    for(auto &s : vServers){
+//        cout << s.tostring() << endl;
+//    }
 #endif
     return 0;
 }
