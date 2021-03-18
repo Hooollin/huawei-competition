@@ -240,7 +240,7 @@ int makePurchase(VirtualMachineModel vmd, int today, int T);
 
 bool compareNode(Node nodeA, Node nodeB, VirtualMachineModel vmd);
 
-void makeDeploymentOutput(int serverId, int node);
+string makeDeploymentOutput(int serverId, int node);
 
 void updateResource(Server &server, int node, int vmcore, int vmmemory, bool isDel);
 
@@ -259,6 +259,8 @@ void solve(int day, int T);
 void initializeOperationVector();
 
 int getNextServerId();
+
+int getNextGlobalServerId();
 
 //***************************END FUNCTION DEFINITION**********************************
 
@@ -369,8 +371,7 @@ void readOperation(){
 
 // ******************************ALGO*********************************
 
-map<int, int> mlocalServerIdGlobalServerId;
-
+map<int, int> mLocalServerIdGlobalServerId; //serverId到输出id的映射
 map<int, pair<int, int> > mVirtualMachineServer; // 虚拟机编号到服务器编号以及节点的映射
 vector<Server> vServers;        //所有已经创建的服务器
 map<int, Server> mSeverIdServer;     //服务器编号到服务器的映射
@@ -380,7 +381,9 @@ map<int, VirtualMachine> mVmidVirtualMachine;       //虚拟机编号到虚拟�
 //输出数据
 vector<string> vPurchases;
 vector<string> vMigrations;
-vector<string> vDeployments;
+vector<pair<int, int>> vDeployments;
+
+vector<int> vPurchasedServers;
 
 void initializeOperationVector(){
     vOperations.clear();
@@ -391,11 +394,17 @@ void initializeOperationVector(){
     vMigrations.resize(0);
     vDeployments.clear();
     vDeployments.resize(0);
+    vPurchasedServers.clear();
+    vPurchasedServers.resize(0);
 }
 
 // purchase时获取服务器编号
 int getNextServerId(){
     return localServerNum++;
+}
+
+int getNextGlobalServerId(){
+    return globalServerNumber++;
 }
 
 // 判断虚拟机是否可以放在服务器中
@@ -449,11 +458,6 @@ int selectServer(VirtualMachineModel vmd){
     return targetServerIdx == -1 ? -1 : vServers[targetServerIdx].id;
 }
 
-void makePurchaseOutput(string type, int amount){
-    string output = "(" + type + ", " + to_string(amount) + ")";
-    vPurchases.push_back(output);
-}
-
 int makePurchase(VirtualMachineModel vmd, int today, int T){
     int newServerId = getNextServerId();
 
@@ -477,11 +481,13 @@ int makePurchase(VirtualMachineModel vmd, int today, int T){
 
     ServerModel sm = vServerModels[k];
     Server purchasedServer(sm.type, newServerId);
+
+    vPurchasedServers.push_back(newServerId);
+
     vServers.push_back(purchasedServer);
     mServerIdVectorPos[newServerId] = vServers.size() - 1;
     mSeverIdServer[newServerId] = purchasedServer;
 
-    makePurchaseOutput(purchasedServer.getType(), 1);
     return newServerId;
 }
 
@@ -513,16 +519,16 @@ bool compareNode(Node nodeA, Node nodeB, VirtualMachineModel vmd){
     return nodeA.memoryRem > nodeB.memoryRem;
 }
 
-void makeDeploymentOutput(int serverId, int node){
+string makeDeploymentOutput(int serverId, int node){
     string output;
     if(node == A){
-        output = "(" + to_string(serverId) + ", A" + ")";
+        output = "(" + to_string(mLocalServerIdGlobalServerId[serverId]) + ", A" + ")";
     }else if(node == B){
-        output = "(" + to_string(serverId) + ", B" + ")";
+        output = "(" + to_string(mLocalServerIdGlobalServerId[serverId]) + ", B" + ")";
     }else{
-        output = "(" + to_string(serverId) + ")";
+        output = "(" + to_string(mLocalServerIdGlobalServerId[serverId]) + ")";
     }
-    vDeployments.push_back(output);
+    return output;
 }
 
 void updateResource(Server &server, int node, int vmcore, int vmmemory, bool isDel){
@@ -575,7 +581,7 @@ void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, int serverId){
     mVirtualMachineServer[vmid] = {serverId, loc};
     mSeverIdServer[serverId] = server;
     vServers[mServerIdVectorPos[serverId]] = server;
-    makeDeploymentOutput(serverId, loc);
+    vDeployments.push_back({serverId, loc});
 }
 
 
@@ -612,20 +618,28 @@ void releaseRes(OP delop){
 }
 
 void doOutput(){
-    cout << "(purchase, " << vPurchases.size() << ")" << endl;
-    if(vPurchases.size() == 0){
-        for(auto &str : vPurchases){
-            cout << str << endl;
+    map<string, vector<int>> cnt;
+    for(int serverId : vPurchasedServers){
+        string type = mSeverIdServer[serverId].getType();
+        if(cnt.find(type) == cnt.end()){
+            cnt[type] = vector<int>();
         }
+        cnt[type].push_back(serverId);
     }
-//    for(auto &str : vPurchases){
-//        cout << str << endl;
-//    }
-//    //暂时没有migration
-//    cout << "(migration, 0)" << endl;
-//    for(auto &str : vDeployments){
-//        cout << str << endl;
-//    }
+    cout << "(purchase, " << to_string(cnt.size()) << ")" << endl;
+    for(auto &p : cnt){
+        for(int serverid : p.second){
+            mLocalServerIdGlobalServerId[serverid] = getNextGlobalServerId();
+        }
+        string curr = "(" + p.first + ", " + to_string(p.second.size()) + ")";
+        cout << curr << endl;
+    }
+    
+    //暂时没有migration
+    cout << "(migration, 0)" << endl;
+    for(auto &p : vDeployments){
+        cout << makeDeploymentOutput(p.first, p.second) << endl;
+    }
 }
 
 void migrate(){
