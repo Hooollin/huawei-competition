@@ -16,7 +16,7 @@
 #define B 4
 #define BOTH 5
 
-//#define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 int addcount = 0;
@@ -26,6 +26,10 @@ int delcount = 0;
 // 用来生成服务器编号
 int localServerNum = 0;
 int globalServerNumber = 0;
+int MAX_VM_CORE = 0;
+int MAX_VM_MEMORY = 0;
+int MAX_SERVERMODEL_CORE = 0;
+int MAX_SERVERMODEL_MEMORY = 0;
 
 using namespace std;
 
@@ -226,9 +230,15 @@ class OP{
         OP(){}
 };
 
-struct cmp{
+struct cmp1{
     bool operator()(ServerModel &a, ServerModel &b){
-        return 15 * (abs(b.core - b.memory)) + a.core + a.memory < 10 * abs(a.core - a.memory) + b.core + b.memory;
+        return abs(a.core - a.memory) > abs(b.core - b.memory);
+    }
+};
+
+struct cmp2{
+    bool operator()(ServerModel &a, ServerModel &b){
+        return a.core + a.memory < b.core + b.memory;
     }
 };
 
@@ -453,64 +463,123 @@ float leftProportion(Server server){
     return (float)totalCoreRem / server.getCore() + (float)totalMemRem / server.getMemory();
 }
 
+double similarity(VirtualMachineModel vmd, Server server){
+    return abs((double)vmd.core / vmd.memory - (double)server.getMemory() / server.getMemory());
+}
+
 int selectServer(VirtualMachineModel vmd){
-    float left = 2.; // 可能的最大值
     int targetServerIdx = -1;
+    double currsimi = 1e6;
     for(int i = 0; i < vServers.size(); i++){
         Server currServer = vServers[i];
-        float currLeft = leftProportion(currServer);
-        if(canPut(currServer, vmd) && currLeft < left){
-            left = currLeft;
+        double simi = similarity(vmd, currServer);
+        if(canPut(currServer, vmd) && (targetServerIdx == -1 || currsimi > simi)){
+            currsimi = simi;
             targetServerIdx = i;
         }
     }
     return targetServerIdx == -1 ? -1 : vServers[targetServerIdx].id;
 }
 
+bool canBuy(ServerModel sm, int neededCore, int neededMem){
+    return sm.core >= neededCore && sm.memory >= neededMem;
+}
+
+bool isHugeAndBalanced(int core, int memory, int maxcore, int maxmem){
+    if(core * 5 < maxcore && memory * 5 < maxmem){
+        return false;
+    }
+    //所需资源不均衡
+    //if((double)core / memory > 5. || (double) memory / core > 5.){
+    //    return true;
+    //}
+    return false;
+}
+
+double maxmin(double maxv, double minv, double val){
+    if(maxv == 0){
+        return 1;
+    }
+    return (val - minv) / maxv;
+}
+
+//返回server所在vServers的下标
+int buyServer(int day, int T, int neededCore, int neededMem){
+    vector<int> costs;
+    vector<int> balances;
+    vector<int> dailyCosts;
+    vector<int> deviceCosts;
+
+    for(int i = 0; i < vServerModels.size(); i++){
+        ServerModel server = vServerModels[i];
+        balances.push_back(abs(server.core - server.memory));
+        costs.push_back(server.dailyCost * (T - day) + server.deviceCost);
+  //      dailyCosts.push_back(server.dailyCost * (T - day));
+  //      deviceCosts.push_back(server.deviceCost);
+    }
+  //int maxdac = *max_element(dailyCosts.begin(), dailyCosts.end());
+  //int mindac = *min_element(dailyCosts.begin(), dailyCosts.end());
+
+  //int maxdec = *max_element(deviceCosts.begin(), deviceCosts.end());
+  //int mindec = *min_element(deviceCosts.begin(), deviceCosts.end());
+  //
+  //for(int i = 0; i < vServerModels.size(); i++){
+  //    double mmdaily = maxmin(maxdac, mindac, dailyCosts[i]);
+  //    double mmdevice = maxmin(maxdec, mindec, deviceCosts[i]); 
+  //    costs.push_back((mmdaily * 0.3 + mmdevice * 0.7));
+  //}
+    int maxc = *max_element(costs.begin(), costs.end());
+    int minc = *min_element(costs.begin(), costs.end());
+    int maxb = *max_element(balances.begin(), balances.end());
+    int minb = *min_element(balances.begin(), balances.end());
+    
+    vector<double> priority(vServerModels.size());
+    
+
+    for(int i = 0; i < priority.size(); i++){
+        priority[i] = maxmin(maxc, minc, costs[i]) * 0.3 + (1 - maxmin(maxb, minb, balances[i])) * 0.7;
+    }
+
+    int k = -1;
+    for(int i = 0; i < priority.size(); i++){
+        if(canBuy(vServerModels[i], neededCore, neededMem) && (k == -1 || priority[k] < priority[i])){
+            k = i;
+        }
+    }
+#ifdef DEBUG
+//    assert(k != -1);
+//    for(int i = 0; i < priority.size(); i++){
+//        cout << priority[i] << endl;
+//    }
+//
+//    cout << maxc << " " << minc << " " << maxb << " " << minb << endl;
+    cout << k << " " << priority[k] << " " << day << " " << vServerModels[k].tostring() << endl;
+#endif
+    return k;
+}
+
 int makePurchase(VirtualMachineModel vmd, int today, int T){
     int newServerId = getNextServerId();
-
-    // 测试，只买合适并且最便宜的
+    
+    //当前虚拟机需要的core和内存大小
     int neededCore = vmd.core, neededMem = vmd.memory;
     if(vmd.single){
         neededCore *= 2;
         neededMem *= 2;
     }
+
     int k = -1;
-    if(today <= 90 * T / 100){
-        int len = vServerModels.size();
-        int i;
-        if(today % 2){
-            i = 7 * len / 10;
-        }else{
-            i = 7 * len / 10;
-        }
-        for(; i <= len; i++){
-            ServerModel sm = vServerModels[i];
-            if(sm.core >= neededCore && sm.memory >= neededMem && k == -1){
-                k = i;
-                break;
-            }
-        }
-        if(k == -1){
-            while(len){
-                len -= 1;
-                ServerModel sm = vServerModels[len];
-                if(sm.core >= neededCore && sm.memory >= neededMem && k == -1){
-                    k = len;
-                    break;
-                }
-            }       
-        }
-    }else{
+//    if(today <= 1 * T / 100 && !isHugeAndBalanced(neededCore, neededMem, MAX_VM_CORE, MAX_VM_MEMORY)){
+//        k = buyServer(today, T, neededCore, neededMem);
+//    }else{
         //找最合适的那个
         for(int i = 0; i < vServerModels.size(); i++){
             ServerModel sm = vServerModels[i];
-            if(sm.core >= neededCore && sm.memory >= neededMem && (k == -1 || vServerModels[k].deviceCost > sm.deviceCost)){
+            if(canBuy(sm, neededCore, neededMem) && (k == -1 || vServerModels[k].deviceCost > sm.deviceCost)){
                 k = i;
             }
         }
-    }
+//    }
 
 #ifdef DEBUG
     assert(k != -1);
@@ -705,6 +774,7 @@ void solve(int today, int T){
 #endif
 }
 
+//测试用，判断server的资源是否合法
 bool checkServer(Server server){
     if(server.nodeA.coreRem < 0 || server.nodeB.coreRem < 0){
         return false;
@@ -716,6 +786,19 @@ bool checkServer(Server server){
         return false;
     }
     if(server.nodeA.memoryUsed + server.nodeA.memoryRem + server.nodeB.memoryRem + server.nodeB.memoryUsed != server.getMemory()){
+        return false;
+    }
+    return true;
+}
+// 检查服务器是否到了使用度
+bool checkUsage(Server server){
+    float minimumUseage = .7;
+    int usedCore = server.nodeA.coreUsed + server.nodeB.coreUsed;
+    int usedMem = server.nodeA.memoryUsed + server.nodeB.memoryUsed;
+    if((float)usedCore / server.getCore() < minimumUseage){
+        return false;
+    }
+    if((float)usedMem / server.getMemory() < minimumUseage){
         return false;
     }
     return true;
@@ -734,14 +817,20 @@ int main()
     for(int i = 0; i < N; i++){
         readServerModel();
     }
+    for(int i = 0; i < vServerModels.size(); i++){
+        MAX_SERVERMODEL_CORE = max(MAX_SERVERMODEL_CORE, vServerModels[i].core);
+        MAX_SERVERMODEL_MEMORY = max(MAX_SERVERMODEL_MEMORY, vServerModels[i].memory);
+    }
+
     cin >> M;
     cin.ignore(); //忽略回车
     for(int i = 0; i < M; i++){
         readVirtualMachineModel();
     }
-
-    sort(vServerModels.begin(), vServerModels.end(), cmp());
-    
+    for(int i = 0; i < vVirtualMachineModels.size(); i++){
+        MAX_VM_CORE = vVirtualMachineModels[i].core;
+        MAX_VM_MEMORY = vVirtualMachineModels[i].memory;
+    }
     cin >> T;
 
     for(int i = 1; i <= T; i++){
@@ -761,23 +850,31 @@ int main()
     cout << "M: " << vVirtualMachineModels.size() << endl;
     cout << "add count: " << addcount << endl;
     cout << "del count: " << delcount << endl;
-    
+    int unfilledSize = 0;
     for(auto &s : vServers){
-        int sid = s.id;
-        for(auto p : mVirtualMachineServer){
-            if(p.second.first == sid){
-                cout << p.first << " ";
-            }
-        }
-        cout << endl;
-        cout << s.tostring() << endl;
-    }
-
-    for(auto &s : vServers){
-        if(!checkServer(s)){
+        if(!checkUsage(s)){
             cout << s.tostring() << endl;
+            unfilledSize += 1;
         }
     }
+    cout << vServers.size() << " " << unfilledSize << endl;
+    
+//    for(auto &s : vServers){
+//        int sid = s.id;
+//        for(auto p : mVirtualMachineServer){
+//            if(p.second.first == sid){
+//                cout << p.first << " ";
+//            }
+//        }
+//        cout << endl;
+//        cout << s.tostring() << endl;
+//    }
+
+//    for(auto &s : vServers){
+//        if(!checkServer(s)){
+//            cout << s.tostring() << endl;
+//        }
+//    }
 
 //    for(auto &s : vServerModels){
 //        cout << s.tostring() << endl;
