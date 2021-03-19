@@ -16,7 +16,7 @@
 #define B 4
 #define BOTH 5
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 int addcount = 0;
@@ -573,9 +573,10 @@ int makePurchase(VirtualMachineModel vmd, int today, int T){
 //        k = buyServer(today, T, neededCore, neededMem);
 //    }else{
         //找最合适的那个
+        //记录所有合适的
         for(int i = 0; i < vServerModels.size(); i++){
             ServerModel sm = vServerModels[i];
-            if(canBuy(sm, neededCore, neededMem) && (k == -1 || vServerModels[k].deviceCost > sm.deviceCost)){
+            if(canBuy(sm, neededCore, neededMem) && (k == -1 || (T - today) * vServerModels[k].dailyCost + vServerModels[k].deviceCost > (T - today) * sm.dailyCost + sm.deviceCost)){
                 k = i;
             }
         }
