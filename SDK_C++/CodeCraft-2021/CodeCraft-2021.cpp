@@ -8,7 +8,6 @@
 #include <algorithm>
 
 //最大CPU + RAM
-#define MAXSOURCE 2048
 
 // 操作类型
 #define ADD 1
@@ -33,6 +32,7 @@ int MAX_VM_CORE = 0;
 int MAX_VM_MEMORY = 0;
 int MAX_SERVERMODEL_CORE = 0;
 int MAX_SERVERMODEL_MEMORY = 0;
+int MAXSOURCE = 0;
 
 // 权重值
 const double SelectWeight = 0.8;
@@ -442,7 +442,7 @@ int canPut(Server server, VirtualMachineModel vmd){
         }
         // 可以放在B节点
         if(server.nodeB.coreRem >= neededCore && server.nodeB.memoryRem >= neededMem){
-            choice = choice == NONE ? B : BOTH;
+            choice = (choice == NONE) ? B : BOTH;
         }
         return choice;
     }else{
@@ -496,16 +496,18 @@ pair<double,int> selectServerCal(Server &currServer, VirtualMachineModel &vmd,in
     if(vmd.single){
         if(choice == A || choice == BOTH){
             res = selectServerFun(currServer,vmd.core,vmd.memory,0,0);
+            choseNode = A;
         }
         if(choice == B || choice == BOTH){
-            cal = selectServerFun(currServer,vmd.core,0,0,vmd.memory);
-            if(res < cal){
+            cal = selectServerFun(currServer,0,0,vmd.core,vmd.memory);
+            if(cal > res){
                 res = cal;
                 choseNode = B;
             }
         }
     }else{
         res = selectServerFun(currServer,vmd.core >> 1,vmd.memory >> 1,vmd.core >> 1,vmd.memory >> 1);
+        choseNode = BOTH;
     }
     return make_pair(res,choseNode);
 }
@@ -518,14 +520,11 @@ pair<int,int> selectServer(VirtualMachineModel vmd){
     for(int i = 0; i < vServers.size(); i++){
         Server currServer = vServers[i];
         choice = canPut(currServer,vmd);
-        if(choice){
-           // cout<<i<<" "<<choice<<" "<<currServer.getCore()<<" "<<currServer.getMemory()<<endl;
+        if(choice > 0){
             res = selectServerCal(currServer,vmd,choice);
-            //cout<<"node："<<res.first<<" "<<res.second<<endl;
             if(res.first > maxn)  maxn = res.first,targetServerIdx = i,choice = res.second;
         }
     }
-    //cout<<maxn<<" "<<choice<<" "<<targetServerIdx<<endl;
     return targetServerIdx == -1 ? make_pair(-1,-1) : make_pair(vServers[targetServerIdx].id,choice);
 }
 
@@ -845,9 +844,10 @@ int main()
         readVirtualMachineModel();
     }
     for(int i = 0; i < vVirtualMachineModels.size(); i++){
-        MAX_VM_CORE = vVirtualMachineModels[i].core;
-        MAX_VM_MEMORY = vVirtualMachineModels[i].memory;
+        MAX_VM_CORE = max(MAX_VM_CORE,vVirtualMachineModels[i].core);
+        MAX_VM_MEMORY = max(MAX_VM_CORE,vVirtualMachineModels[i].memory);
     }
+    MAXSOURCE = MAX_SERVERMODEL_CORE + MAX_SERVERMODEL_MEMORY ;
     cin >> T;
 
     for(int i = 1; i <= T; i++){
