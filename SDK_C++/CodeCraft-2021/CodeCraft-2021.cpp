@@ -7,15 +7,18 @@
 #include <random>
 #include <algorithm>
 
-// æ“ä½œç±»å‹
+//×î´óCPU + RAM
+#define MAXSOURCE 2048
+
+// ²Ù×÷ÀàĞÍ
 #define ADD 1
 #define DEL 2
 
-// è™šæ‹Ÿæœºæ‰€åœ¨èŠ‚ç‚¹ï¼šAã€Bã€BOTH
+// ĞéÄâ»úËùÔÚ½Úµã£ºA¡¢B¡¢BOTH,ĞéÄâ»ú¿É²¿Êğ½Úµã£º1.µ¥½ÚµãÏÂ:A,B,BOTH,NONE2.Ë«½ÚµãÏÂ:BOTH,NONE
 #define A 3
 #define B 4
 #define BOTH 5
-
+#define NONE 0
 //#define DEBUG
 
 #ifdef DEBUG
@@ -23,9 +26,17 @@ int addcount = 0;
 int delcount = 0;
 #endif
 
-// ç”¨æ¥ç”ŸæˆæœåŠ¡å™¨ç¼–å·
+// ÓÃÀ´Éú³É·şÎñÆ÷±àºÅ
 int localServerNum = 0;
 int globalServerNumber = 0;
+int MAX_VM_CORE = 0;
+int MAX_VM_MEMORY = 0;
+int MAX_SERVERMODEL_CORE = 0;
+int MAX_SERVERMODEL_MEMORY = 0;
+
+// È¨ÖØÖµ
+const double SelectWeight = 0.8;
+const double PurchaseWeight = 0.8;
 
 using namespace std;
 
@@ -37,9 +48,9 @@ using namespace std;
 class Node{
     public:
         int coreUsed;
-        int coreRem;            //è¿˜å¯ä»¥ç”¨çš„æ ¸å¿ƒæ•°
+        int coreRem;            //»¹¿ÉÒÔÓÃµÄºËĞÄÊı
         int memoryUsed;
-        int memoryRem;          //è¿˜å¯ä»¥ç”¨çš„å†…å­˜å¤§å°
+        int memoryRem;          //»¹¿ÉÒÔÓÃµÄÄÚ´æ´óĞ¡
 
         string tostring(){
             return "Node: {coreUsed: " + to_string(coreUsed)
@@ -52,12 +63,12 @@ class Node{
 
 class ServerModel{
     public:
-        string type;    // å‹å·
-        int core;		// CPUæ•°é‡
-        int memory;		// å†…å­˜å¤§å°
+        string type;    // ĞÍºÅ
+        int core;		// CPUÊıÁ¿
+        int memory;		// ÄÚ´æ´óĞ¡
 
-        int deviceCost; // ç¡¬ä»¶æˆæœ¬
-        int dailyCost;  // æ—¥å¸¸æˆæœ¬
+        int deviceCost; // Ó²¼ş³É±¾
+        int dailyCost;  // ÈÕ³£³É±¾
 
         ServerModel(){}
 
@@ -69,11 +80,11 @@ class ServerModel{
             this->dailyCost = dailyCost;
         }
 
-        string tostring(){	
+        string tostring(){
             return "ServerModel: {type: " + this->type
                 + ", core: " + to_string(this->core)
-                + ", memory: " + to_string(this->memory) 
-                + ", deviceCost: " + to_string(this->deviceCost) 
+                + ", memory: " + to_string(this->memory)
+                + ", deviceCost: " + to_string(this->deviceCost)
                 + ", dailyCost: " + to_string(this->dailyCost) + "}";
         }
 
@@ -81,10 +92,10 @@ class ServerModel{
 
 class VirtualMachineModel{
     public:
-        string type;	//è™šæ‹Ÿæœºå‹å·
-        int core;		//æ‰€éœ€å†…æ ¸æ•°
-        int memory;		//æ‰€éœ€å†…å­˜å¤§å°
-        bool single;	//æ˜¯å¦å•èŠ‚ç‚¹å¸ƒç½®
+        string type;	//ĞéÄâ»úĞÍºÅ
+        int core;		//ËùĞèÄÚºËÊı
+        int memory;		//ËùĞèÄÚ´æ´óĞ¡
+        bool single;	//ÊÇ·ñµ¥½Úµã²¼ÖÃ
 
         VirtualMachineModel(){
 
@@ -98,7 +109,7 @@ class VirtualMachineModel{
         }
 
         string tostring(){
-            return "VirtualMachineModel: {type: " + this->type 
+            return "VirtualMachineModel: {type: " + this->type
                 + ", core: " + to_string(this->core)
                 + ", memory: " + to_string(this->memory)
                 + ", single: " + (this->single ? "True" : "False")
@@ -106,18 +117,18 @@ class VirtualMachineModel{
         }
 };
 
-// è¿™å››è¡Œæ”¾åœ¨severå’Œvirtual machineä¹‹å‰
-map<string, ServerModel> mServerModels; // æ‰€æœ‰æœåŠ¡å™¨å‹å·ï¼› key: type -> value: æœåŠ¡å™¨å‹å·
-map<string, VirtualMachineModel> mVirtualMachineModels; // æ‰€æœ‰è™šæ‹Ÿæœºå‹å·ï¼› key: type -> value: è™šæ‹Ÿæœºå‹å·
+// ÕâËÄĞĞ·ÅÔÚseverºÍvirtual machineÖ®Ç°
+map<string, ServerModel> mServerModels; // ËùÓĞ·şÎñÆ÷ĞÍºÅ£» key: type -> value: ·şÎñÆ÷ĞÍºÅ
+map<string, VirtualMachineModel> mVirtualMachineModels; // ËùÓĞĞéÄâ»úĞÍºÅ£» key: type -> value: ĞéÄâ»úĞÍºÅ
 
-vector<ServerModel> vServerModels; 
+vector<ServerModel> vServerModels;
 vector<VirtualMachineModel> vVirtualMachineModels;
 
 class Server : ServerModel{
     public:
-        int globalServerId;         //è¾“å‡ºæ—¶å€™çš„serverId
-        int id;			            //æœ¬åœ°æœåŠ¡å™¨ç¼–å·
-        Node nodeA, nodeB;          //èŠ‚ç‚¹Aï¼ŒB
+        int globalServerId;         //Êä³öÊ±ºòµÄserverId
+        int id;			            //±¾µØ·şÎñÆ÷±àºÅ
+        Node nodeA, nodeB;          //½ÚµãA£¬B
 
         Server(string type, int core, int memory, int deviceCost, int dailyCost, int id): ServerModel(type, core, memory, deviceCost, dailyCost) {
             this->id = id;
@@ -127,7 +138,7 @@ class Server : ServerModel{
 
         Server(string type, int id){
 #ifdef DEBUG
-            assert(mServerModels.find(type) != mServerModels.end()); // debugï¼šç¡®ä¿typeå­˜åœ¨
+            assert(mServerModels.find(type) != mServerModels.end()); // debug£ºÈ·±£type´æÔÚ
 #endif
             ServerModel model = mServerModels[type];
             this->type = type;
@@ -137,7 +148,7 @@ class Server : ServerModel{
             this->deviceCost = model.deviceCost;
             this->dailyCost = model.dailyCost;
 
-            // èŠ‚ç‚¹åˆå§‹åŒ–
+            // ½Úµã³õÊ¼»¯
             nodeA.coreUsed = 0;
             nodeA.memoryUsed = 0;
             nodeB.coreUsed = 0;
@@ -168,14 +179,14 @@ class Server : ServerModel{
             return this->dailyCost;
         }
 
-        string tostring(){	
+        string tostring(){
             return "Server: {id: " + to_string(this->id)
                 + ", type: " + this->type
                 + ", " + nodeA.tostring()
                 + ", " + nodeB.tostring()
                 + ", core: " + to_string(this->core)
-                + ", memory: " + to_string(this->memory) 
-                + ", deviceCost: " + to_string(this->deviceCost) 
+                + ", memory: " + to_string(this->memory)
+                + ", deviceCost: " + to_string(this->deviceCost)
                 + ", dailyCost: " + to_string(this->dailyCost)
                 + "}";
         }
@@ -210,7 +221,7 @@ class VirtualMachine : VirtualMachineModel{
 
         string tostring(){
             return "VirtualMachine: {id: " + to_string(this->id)
-                + ", type: " + this->type 
+                + ", type: " + this->type
                 + ", core: " + to_string(this->core)
                 + ", memory: " + to_string(this->memory)
                 + ", single: " + (this->single ? "True" : "False")
@@ -226,9 +237,15 @@ class OP{
         OP(){}
 };
 
-struct cmp{
+struct cmp1{
     bool operator()(ServerModel &a, ServerModel &b){
-        return 15 * (abs(b.core - b.memory)) + a.core + a.memory < 10 * abs(a.core - a.memory) + b.core + b.memory;
+        return abs(a.core - a.memory) > abs(b.core - b.memory);
+    }
+};
+
+struct cmp2{
+    bool operator()(ServerModel &a, ServerModel &b){
+        return a.core + a.memory < b.core + b.memory;
     }
 };
 
@@ -237,23 +254,19 @@ struct cmp{
 
 //***************************FUNCTION DEFINITION**********************************
 
-bool canPut(Server server, VirtualMachineModel vmd);
+int canPut(Server server, VirtualMachineModel vmd);
 
 float leftProportion(Server server);
 
-int selectServer(VirtualMachineModel vmd);
+pair<int,int> selectServer(VirtualMachineModel vmd);
 
-void makePurchaseOutput(string type, int amount);
-
-int makePurchase(VirtualMachineModel vmd, int today, int T);
-
-bool compareNode(Node nodeA, Node nodeB, VirtualMachineModel vmd);
+pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T);
 
 string makeDeploymentOutput(int serverId, int node);
 
 void updateResource(Server &server, int node, int vmcore, int vmmemory, bool isDel);
 
-void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, int serverId);
+void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, pair<int,int> serverAndNode);
 
 void allocateServer(OP addop, int today, int T);
 
@@ -271,6 +284,8 @@ int getNextServerId();
 
 int getNextGlobalServerId();
 
+pair<double,int> selectServerCal(Server &currServer, VirtualMachineModel &vmd,int choice);
+
 //***************************END FUNCTION DEFINITION**********************************
 
 
@@ -286,7 +301,7 @@ void readServerModel(){
     getline(cin, line);
     ss << line;
 
-    // è§£ææ¯è¡Œ
+    // ½âÎöÃ¿ĞĞ
     char lp, comma, rp;
     ss >> lp;
     string type;
@@ -304,7 +319,7 @@ void readServerModel(){
     //cout << sm.tostring() << endl;
 #endif
 
-    // åˆ†åˆ«æ·»åŠ åˆ°mapå’Œvector
+    // ·Ö±ğÌí¼Óµ½mapºÍvector
     mServerModels[sm.type] = sm;
     vServerModels.push_back(sm);
 }
@@ -342,7 +357,7 @@ void readOperation(){
     stringstream ss;
 
     string line;
-    getline(cin, line); ss << line; 
+    getline(cin, line); ss << line;
 
     string type;
     char lp, comma, rp;
@@ -380,14 +395,14 @@ void readOperation(){
 
 // ******************************ALGO*********************************
 
-map<int, int> mLocalServerIdGlobalServerId; //serverIdåˆ°è¾“å‡ºidçš„æ˜ å°„
-map<int, pair<int, int> > mVirtualMachineServer; // è™šæ‹Ÿæœºç¼–å·åˆ°æœåŠ¡å™¨ç¼–å·ä»¥åŠèŠ‚ç‚¹çš„æ˜ å°„
-vector<Server> vServers;        //æ‰€æœ‰å·²ç»åˆ›å»ºçš„æœåŠ¡å™¨
-map<int, Server> mSeverIdServer;     //æœåŠ¡å™¨ç¼–å·åˆ°æœåŠ¡å™¨çš„æ˜ å°„
-map<int, int> mServerIdVectorPos;    //æœåŠ¡å™¨ç¼–å·åˆ°vectorä¸‹æ ‡çš„æ˜ å°„
-map<int, VirtualMachine> mVmidVirtualMachine;       //è™šæ‹Ÿæœºç¼–å·åˆ°è™šæ‹Ÿæœºåˆ°æ˜ å°„
+map<int, int> mLocalServerIdGlobalServerId; //serverIdµ½Êä³öidµÄÓ³Éä
+map<int, pair<int, int> > mVirtualMachineServer; // ĞéÄâ»ú±àºÅµ½·şÎñÆ÷±àºÅÒÔ¼°½ÚµãµÄÓ³Éä
+vector<Server> vServers;        //ËùÓĞÒÑ¾­´´½¨µÄ·şÎñÆ÷
+map<int, Server> mSeverIdServer;     //·şÎñÆ÷±àºÅµ½·şÎñÆ÷µÄÓ³Éä
+map<int, int> mServerIdVectorPos;    //·şÎñÆ÷±àºÅµ½vectorÏÂ±êµÄÓ³Éä
+map<int, VirtualMachine> mVmidVirtualMachine;       //ĞéÄâ»ú±àºÅµ½ĞéÄâ»úµ½Ó³Éä
 
-//è¾“å‡ºæ•°æ®
+//Êä³öÊı¾İ
 vector<string> vPurchases;
 vector<string> vMigrations;
 vector<pair<int, int>> vDeployments;
@@ -407,7 +422,7 @@ void initializeOperationVector(){
     vPurchasedServers.resize(0);
 }
 
-// purchaseæ—¶è·å–æœåŠ¡å™¨ç¼–å·
+// purchaseÊ±»ñÈ¡·şÎñÆ÷±àºÅ
 int getNextServerId(){
     return localServerNum++;
 }
@@ -416,34 +431,35 @@ int getNextGlobalServerId(){
     return globalServerNumber++;
 }
 
-// åˆ¤æ–­è™šæ‹Ÿæœºæ˜¯å¦å¯ä»¥æ”¾åœ¨æœåŠ¡å™¨ä¸­
-bool canPut(Server server, VirtualMachineModel vmd){
+// ÅĞ¶ÏĞéÄâ»úÊÇ·ñ¿ÉÒÔ·ÅÔÚ·şÎñÆ÷ÖĞ
+int canPut(Server server, VirtualMachineModel vmd){
     int neededCore = vmd.core, neededMem = vmd.memory;
     if(vmd.single){
-        // å¯ä»¥æ”¾åœ¨AèŠ‚ç‚¹
+        int choice = NONE;
+        // ¿ÉÒÔ·ÅÔÚA½Úµã
         if(server.nodeA.coreRem >= neededCore && server.nodeA.memoryRem >= neededMem){
-            return true;
-        } 
-        // å¯ä»¥æ”¾åœ¨BèŠ‚ç‚¹
-        if(server.nodeB.coreRem >= neededCore && server.nodeB.memoryRem >= neededMem){
-            return true;
+            choice = A;
         }
-        return false;
+        // ¿ÉÒÔ·ÅÔÚB½Úµã
+        if(server.nodeB.coreRem >= neededCore && server.nodeB.memoryRem >= neededMem){
+            choice = choice == NONE ? B : BOTH;
+        }
+        return choice;
     }else{
         neededCore /= 2; neededMem /= 2;
         if(server.nodeA.coreRem < neededCore){
-            return false;
+            return NONE;
         }
         if(server.nodeB.coreRem < neededCore){
-            return false;
+            return NONE;
         }
         if(server.nodeA.memoryRem < neededMem){
-            return false;
+            return NONE;
         }
         if(server.nodeB.memoryRem < neededMem){
-            return false;
+            return NONE;
         }
-        return true;
+        return BOTH;
     }
 }
 
@@ -453,64 +469,165 @@ float leftProportion(Server server){
     return (float)totalCoreRem / server.getCore() + (float)totalMemRem / server.getMemory();
 }
 
-int selectServer(VirtualMachineModel vmd){
-    float left = 2.; // å¯èƒ½çš„æœ€å¤§å€¼
+double similarity(VirtualMachineModel vmd, Server server){
+    return abs((double)vmd.core / vmd.memory - (double)server.getMemory() / server.getMemory());
+}
+
+//¼ÆËãÑ¡ÔñÖµ
+double selectServerFun(Server &currServer,int occupyACore,int occupyAMem,int occupyBCore,int occupyBMem){
+    int leftACore = currServer.nodeA.coreRem - occupyACore, leftBCore = currServer.nodeB.coreRem - occupyBCore;
+    int leftAMem = currServer.nodeA.memoryRem - occupyAMem,leftBMem = currServer.nodeB.memoryRem - occupyBMem;
+    int totalCore = currServer.getCore() >> 1;
+    int totalMem = currServer.getMemory() >> 1;
+    //¼ÆËãËéÆ¬²ÎÊı
+    double chipF = (1.0 * MAXSOURCE - leftACore - leftAMem - leftBCore - leftBMem) / MAXSOURCE;
+    //cout<<"chipF:"<<chipF<<" "<<MAXSOURCE<<" "<<leftACore<<" "<<leftAMem<<" "<<leftBCore<<" "<<leftBMem<<endl;
+    //¼ÆËãÆ½ºâ²ÎÊı
+    double balanceF =(abs(1 - abs(1 - (1.0 * leftACore / totalCore ) / (1.0 * leftAMem / totalMem))) + abs(1 - abs(1 - (1.0 * leftBCore / totalCore) / (1.0 * leftBMem / totalMem)))) / 2;
+    //cout<<"balanceF:"<<balanceF<<endl;
+    //·µ»Ø¼ÓÈ¨Öµ
+    return SelectWeight * chipF + (1 - SelectWeight) * balanceF;
+}
+
+pair<double,int> selectServerCal(Server &currServer, VirtualMachineModel &vmd,int choice){
+    double res = 0;
+    int choseNode = 0;
+    double cal;
+    if(vmd.single){
+        if(choice == A || choice == BOTH){
+            res = selectServerFun(currServer,vmd.core,vmd.memory,0,0);
+        }
+        if(choice == B || choice == BOTH){
+            cal = selectServerFun(currServer,vmd.core,0,0,vmd.memory);
+            if(res < cal){
+                res = cal;
+                choseNode = B;
+            }
+        }
+    }else{
+        res = selectServerFun(currServer,vmd.core >> 1,vmd.memory >> 1,vmd.core >> 1,vmd.memory >> 1);
+    }
+    return make_pair(res,choseNode);
+}
+
+pair<int,int> selectServer(VirtualMachineModel vmd){
+    double maxn = 0; //º¯Êı»ñµÃµÄ×î´óÖµ
+    pair<double,int> res;//·µ»ØÖµ
+    int choice;
     int targetServerIdx = -1;
     for(int i = 0; i < vServers.size(); i++){
         Server currServer = vServers[i];
-        float currLeft = leftProportion(currServer);
-        if(canPut(currServer, vmd) && currLeft < left){
-            left = currLeft;
-            targetServerIdx = i;
+        choice = canPut(currServer,vmd);
+        if(choice){
+           // cout<<i<<" "<<choice<<" "<<currServer.getCore()<<" "<<currServer.getMemory()<<endl;
+            res = selectServerCal(currServer,vmd,choice);
+            //cout<<"node£º"<<res.first<<" "<<res.second<<endl;
+            if(res.first > maxn)  maxn = res.first,targetServerIdx = i,choice = res.second;
         }
     }
-    return targetServerIdx == -1 ? -1 : vServers[targetServerIdx].id;
+    //cout<<maxn<<" "<<choice<<" "<<targetServerIdx<<endl;
+    return targetServerIdx == -1 ? make_pair(-1,-1) : make_pair(vServers[targetServerIdx].id,choice);
 }
 
-int makePurchase(VirtualMachineModel vmd, int today, int T){
+bool canBuy(ServerModel sm, int neededCore, int neededMem){
+    return sm.core >= neededCore && sm.memory >= neededMem;
+}
+
+bool isHugeAndBalanced(int core, int memory, int maxcore, int maxmem){
+    if(core * 5 < maxcore && memory * 5 < maxmem){
+        return false;
+    }
+    //ËùĞè×ÊÔ´²»¾ùºâ
+    //if((double)core / memory > 5. || (double) memory / core > 5.){
+    //    return true;
+    //}
+    return false;
+}
+
+double maxmin(double maxv, double minv, double val){
+    if(maxv == 0){
+        return 1;
+    }
+    return (val - minv) / maxv;
+}
+
+//·µ»ØserverËùÔÚvServersµÄÏÂ±ê
+int buyServer(int day, int T, int neededCore, int neededMem){
+    vector<int> costs;
+    vector<int> balances;
+    vector<int> dailyCosts;
+    vector<int> deviceCosts;
+
+    for(int i = 0; i < vServerModels.size(); i++){
+        ServerModel server = vServerModels[i];
+        balances.push_back(abs(server.core - server.memory));
+        costs.push_back(server.dailyCost * (T - day) + server.deviceCost);
+  //      dailyCosts.push_back(server.dailyCost * (T - day));
+  //      deviceCosts.push_back(server.deviceCost);
+    }
+  //int maxdac = *max_element(dailyCosts.begin(), dailyCosts.end());
+  //int mindac = *min_element(dailyCosts.begin(), dailyCosts.end());
+
+  //int maxdec = *max_element(deviceCosts.begin(), deviceCosts.end());
+  //int mindec = *min_element(deviceCosts.begin(), deviceCosts.end());
+  //
+  //for(int i = 0; i < vServerModels.size(); i++){
+  //    double mmdaily = maxmin(maxdac, mindac, dailyCosts[i]);
+  //    double mmdevice = maxmin(maxdec, mindec, deviceCosts[i]);
+  //    costs.push_back((mmdaily * 0.3 + mmdevice * 0.7));
+  //}
+    int maxc = *max_element(costs.begin(), costs.end());
+    int minc = *min_element(costs.begin(), costs.end());
+    int maxb = *max_element(balances.begin(), balances.end());
+    int minb = *min_element(balances.begin(), balances.end());
+
+    vector<double> priority(vServerModels.size());
+
+
+    for(int i = 0; i < priority.size(); i++){
+        priority[i] = maxmin(maxc, minc, costs[i]) * 0.3 + (1 - maxmin(maxb, minb, balances[i])) * 0.7;
+    }
+
+    int k = -1;
+    for(int i = 0; i < priority.size(); i++){
+        if(canBuy(vServerModels[i], neededCore, neededMem) && (k == -1 || priority[k] < priority[i])){
+            k = i;
+        }
+    }
+#ifdef DEBUG
+//    assert(k != -1);
+//    for(int i = 0; i < priority.size(); i++){
+//        cout << priority[i] << endl;
+//    }
+//
+//    cout << maxc << " " << minc << " " << maxb << " " << minb << endl;
+    cout << k << " " << priority[k] << " " << day << " " << vServerModels[k].tostring() << endl;
+#endif
+    return k;
+}
+
+pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T){
     int newServerId = getNextServerId();
 
-    // æµ‹è¯•ï¼Œåªä¹°åˆé€‚å¹¶ä¸”æœ€ä¾¿å®œçš„
+    //µ±Ç°ĞéÄâ»úĞèÒªµÄcoreºÍÄÚ´æ´óĞ¡
     int neededCore = vmd.core, neededMem = vmd.memory;
     if(vmd.single){
         neededCore *= 2;
         neededMem *= 2;
     }
+
     int k = -1;
-    if(today <= 90 * T / 100){
-        int len = vServerModels.size();
-        int i;
-        if(today % 2){
-            i = 7 * len / 10;
-        }else{
-            i = 7 * len / 10;
-        }
-        for(; i <= len; i++){
-            ServerModel sm = vServerModels[i];
-            if(sm.core >= neededCore && sm.memory >= neededMem && k == -1){
-                k = i;
-                break;
-            }
-        }
-        if(k == -1){
-            while(len){
-                len -= 1;
-                ServerModel sm = vServerModels[len];
-                if(sm.core >= neededCore && sm.memory >= neededMem && k == -1){
-                    k = len;
-                    break;
-                }
-            }       
-        }
-    }else{
-        //æ‰¾æœ€åˆé€‚çš„é‚£ä¸ª
+//    if(today <= 1 * T / 100 && !isHugeAndBalanced(neededCore, neededMem, MAX_VM_CORE, MAX_VM_MEMORY)){
+//        k = buyServer(today, T, neededCore, neededMem);
+//    }else{
+        //ÕÒ×îºÏÊÊµÄÄÇ¸ö
         for(int i = 0; i < vServerModels.size(); i++){
             ServerModel sm = vServerModels[i];
-            if(sm.core >= neededCore && sm.memory >= neededMem && (k == -1 || vServerModels[k].deviceCost > sm.deviceCost)){
+            if(canBuy(sm, neededCore, neededMem) && (k == -1 || vServerModels[k].deviceCost > sm.deviceCost)){
                 k = i;
             }
         }
-    }
+//    }
 
 #ifdef DEBUG
     assert(k != -1);
@@ -525,35 +642,8 @@ int makePurchase(VirtualMachineModel vmd, int today, int T){
     mServerIdVectorPos[newServerId] = vServers.size() - 1;
     mSeverIdServer[newServerId] = purchasedServer;
 
-    return newServerId;
-}
-
-//å½“è™šæ‹Ÿæœºæ˜¯å•èŠ‚ç‚¹æ”¾ç½®æ—¶ï¼Œæ¯”è¾ƒå°†vmæ”¾åœ¨AèŠ‚ç‚¹è¿˜æ˜¯BèŠ‚ç‚¹ï¼›true->A, false->B;
-bool compareNode(Node nodeA, Node nodeB, VirtualMachineModel vmd){
-    //åªèƒ½æ”¾åœ¨Aã€Bä¸­çš„ä¸€ä¸ª
-    // AèŠ‚ç‚¹å‰©ä¸‹çš„èµ„æºä¸å¤Ÿ
-    if(vmd.core > nodeA.coreRem || vmd.memory > nodeA.memoryRem){
-        return false;
-    }
-    // BèŠ‚ç‚¹å‰©ä¸‹çš„èµ„æºä¸å¤Ÿ
-    if(vmd.core > nodeB.coreRem || vmd.memory > nodeB.memoryRem){
-        return true;
-    }
-
-    //A, BèŠ‚ç‚¹éƒ½å¯ä»¥æ”¾æ—¶
-    //å¦‚æœAå¯ä»¥æ”¾å¹¶ä¸”æ”¾åcoreå’Œmeméƒ½æ¯”Bå¤š
-    if(nodeA.coreRem - vmd.core >= nodeB.coreRem && nodeA.memoryRem -vmd.memory >= nodeB.memoryRem){
-        return true;
-    }
-    //å¦‚æœBå¯ä»¥æ”¾å¹¶ä¸”æ”¾åcoreå’Œmeméƒ½æ¯”Aå¤š
-    if(nodeB.coreRem - vmd.core >= nodeA.coreRem && nodeB.memoryRem - vmd.memory >= nodeA.memoryRem){
-        return false;
-    }
-    // å…¶ä»–çš„æƒ…å†µå–å†³äºvmdæ‰€éœ€çš„coreå’Œmemory
-    if(vmd.core > vmd.memory){
-        return nodeA.coreRem > nodeB.coreRem;
-    }
-    return nodeA.memoryRem > nodeB.memoryRem;
+    if(vmd.single) return make_pair(newServerId,A);
+    else return make_pair(newServerId,BOTH);
 }
 
 string makeDeploymentOutput(int serverId, int node){
@@ -602,38 +692,34 @@ void updateResource(Server &server, int node, int vmcore, int vmmemory, bool isD
     }
 }
 
-void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, int serverId){
-    //æ‰¾åˆ°å¯¹åº”çš„server
+void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, pair<int,int> serverAndNode){
+    //ÕÒµ½¶ÔÓ¦µÄserver
+    int serverId = serverAndNode.first;
+    int node = serverAndNode.second;
     Server server = mSeverIdServer[serverId];
-    int loc = -1;
-    if(vmd.single){
-        loc = compareNode(server.nodeA, server.nodeB, vmd) ? A : B;
-    }else{
-        loc = BOTH;
-    }
 #ifdef DEBUG
     assert(canPut(server, vmd));
 #endif
-    updateResource(server, loc, vmd.core, vmd.memory, false);
-    mVirtualMachineServer[vmid] = {serverId, loc};
+    updateResource(server, node, vmd.core, vmd.memory, false);
+    mVirtualMachineServer[vmid] = {serverId, node};
     mSeverIdServer[serverId] = server;
     vServers[mServerIdVectorPos[serverId]] = server;
-    vDeployments.push_back({serverId, loc});
+    vDeployments.push_back({serverId, node});
 }
 
 
 void allocateServer(OP addop, int today, int T){
     int vmid = addop.id;
-    // éœ€è¦æ–°å¢è™šæ‹Ÿæœºçš„å‹å·
+    // ĞèÒªĞÂÔöĞéÄâ»úµÄĞÍºÅ
     VirtualMachineModel vmd = mVirtualMachineModels[addop.machineType];
-    //æ–°å¢çš„è™šæ‹Ÿæœºå®ä¾‹
+    //ĞÂÔöµÄĞéÄâ»úÊµÀı
     VirtualMachine vm(addop.machineType, vmid);
     mVmidVirtualMachine[vmid] = vm;
-    int serverId = selectServer(vmd);
-    if(serverId == -1){       // æ²¡æœ‰åˆé€‚çš„æœåŠ¡å™¨ï¼Œéœ€è¦æ–°è´­ä¹°æœåŠ¡å™¨
-        serverId = makePurchase(vmd, today, T);
+    pair<int,int> serverAndNode = selectServer(vmd);
+    if(serverAndNode.first == -1){       // Ã»ÓĞºÏÊÊµÄ·şÎñÆ÷£¬ĞèÒªĞÂ¹ºÂò·şÎñÆ÷
+        serverAndNode = makePurchase(vmd, today, T);
     }
-    putVirtualMachineToServer(vmd, vmid, serverId);
+    putVirtualMachineToServer(vmd, vmid, serverAndNode);
 }
 
 
@@ -655,7 +741,7 @@ void releaseRes(OP delop){
 }
 
 void doOutput(){
-    // è¾“å‡ºpurchase
+    // Êä³öpurchase
     map<string, vector<int>> cnt;
     for(int serverId : vPurchasedServers){
         string type = mSeverIdServer[serverId].getType();
@@ -672,11 +758,11 @@ void doOutput(){
         string curr = "(" + p.first + ", " + to_string(p.second.size()) + ")";
         cout << curr << endl;
     }
-    
-    //æš‚æ—¶æ²¡æœ‰migration
+
+    //ÔİÊ±Ã»ÓĞmigration
     cout << "(migration, 0)" << endl;
 
-    //è¾“å‡ºdeployment
+    //Êä³ödeployment
     for(auto &p : vDeployments){
         cout << makeDeploymentOutput(p.first, p.second) << endl;
     }
@@ -688,23 +774,24 @@ void migrate(){
 
 
 void solve(int today, int T){
-    // é¡ºåºéå†æ¯æ¬¡æ“ä½œ
+    // Ë³Ğò±éÀúÃ¿´Î²Ù×÷
     for(auto & op : vOperations){
         switch(op.opType){
-            case ADD: 
+            case ADD:
                 allocateServer(op, today, T);
                 break;
             case DEL:
                 releaseRes(op);
                 break;
         }
-    }   
+    }
     migrate();
 #ifndef DEBUG
     doOutput();
 #endif
 }
 
+//²âÊÔÓÃ£¬ÅĞ¶ÏserverµÄ×ÊÔ´ÊÇ·ñºÏ·¨
 bool checkServer(Server server){
     if(server.nodeA.coreRem < 0 || server.nodeB.coreRem < 0){
         return false;
@@ -720,6 +807,19 @@ bool checkServer(Server server){
     }
     return true;
 }
+// ¼ì²é·şÎñÆ÷ÊÇ·ñµ½ÁËÊ¹ÓÃ¶È
+bool checkUsage(Server server){
+    float minimumUseage = .7;
+    int usedCore = server.nodeA.coreUsed + server.nodeB.coreUsed;
+    int usedMem = server.nodeA.memoryUsed + server.nodeB.memoryUsed;
+    if((float)usedCore / server.getCore() < minimumUseage){
+        return false;
+    }
+    if((float)usedMem / server.getMemory() < minimumUseage){
+        return false;
+    }
+    return true;
+}
 // ***********************END ALGO*************************
 //
 int main()
@@ -730,24 +830,30 @@ int main()
 
     int N, M, T;
     cin >> N;
-    cin.ignore(); //å¿½ç•¥å›è½¦
+    cin.ignore(); //ºöÂÔ»Ø³µ
     for(int i = 0; i < N; i++){
         readServerModel();
     }
+    for(int i = 0; i < vServerModels.size(); i++){
+        MAX_SERVERMODEL_CORE = max(MAX_SERVERMODEL_CORE, vServerModels[i].core);
+        MAX_SERVERMODEL_MEMORY = max(MAX_SERVERMODEL_MEMORY, vServerModels[i].memory);
+    }
+
     cin >> M;
-    cin.ignore(); //å¿½ç•¥å›è½¦
+    cin.ignore(); //ºöÂÔ»Ø³µ
     for(int i = 0; i < M; i++){
         readVirtualMachineModel();
     }
-
-    sort(vServerModels.begin(), vServerModels.end(), cmp());
-    
+    for(int i = 0; i < vVirtualMachineModels.size(); i++){
+        MAX_VM_CORE = vVirtualMachineModels[i].core;
+        MAX_VM_MEMORY = vVirtualMachineModels[i].memory;
+    }
     cin >> T;
 
     for(int i = 1; i <= T; i++){
         int R;
         cin >> R;
-        cin.ignore(); //å¿½ç•¥å›è½¦
+        cin.ignore(); //ºöÂÔ»Ø³µ
 
         initializeOperationVector();
         while(R-- > 0){
@@ -761,23 +867,31 @@ int main()
     cout << "M: " << vVirtualMachineModels.size() << endl;
     cout << "add count: " << addcount << endl;
     cout << "del count: " << delcount << endl;
-    
+    int unfilledSize = 0;
     for(auto &s : vServers){
-        int sid = s.id;
-        for(auto p : mVirtualMachineServer){
-            if(p.second.first == sid){
-                cout << p.first << " ";
-            }
-        }
-        cout << endl;
-        cout << s.tostring() << endl;
-    }
-
-    for(auto &s : vServers){
-        if(!checkServer(s)){
+        if(!checkUsage(s)){
             cout << s.tostring() << endl;
+            unfilledSize += 1;
         }
     }
+    cout << vServers.size() << " " << unfilledSize << endl;
+
+//    for(auto &s : vServers){
+//        int sid = s.id;
+//        for(auto p : mVirtualMachineServer){
+//            if(p.second.first == sid){
+//                cout << p.first << " ";
+//            }
+//        }
+//        cout << endl;
+//        cout << s.tostring() << endl;
+//    }
+
+//    for(auto &s : vServers){
+//        if(!checkServer(s)){
+//            cout << s.tostring() << endl;
+//        }
+//    }
 
 //    for(auto &s : vServerModels){
 //        cout << s.tostring() << endl;
