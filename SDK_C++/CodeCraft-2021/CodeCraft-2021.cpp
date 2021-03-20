@@ -35,9 +35,10 @@ int MAX_SERVERMODEL_MEMORY = 0;
 int MAXSOURCE = 0;
 
 // 权重值
-const double SelectWeight = 0.2;
-const double PurchaseWeight = 0.8;
-
+double SelectWeight = 1.0;
+double DayWeight = 0.8;
+double PriceWeight = 0.95;
+double leftSpaceWeight = 0.0;
 using namespace std;
 
 
@@ -614,19 +615,46 @@ pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T){
         neededCore *= 2;
         neededMem *= 2;
     }
-
-    int k = -1;
-//    if(today <= 1 * T / 100 && !isHugeAndBalanced(neededCore, neededMem, MAX_VM_CORE, MAX_VM_MEMORY)){
-//        k = buyServer(today, T, neededCore, neededMem);
-//    }else{
-        //找最合适的那个
-        for(int i = 0; i < vServerModels.size(); i++){
-            ServerModel sm = vServerModels[i];
-            if(canBuy(sm, neededCore, neededMem) && (k == -1 || vServerModels[k].deviceCost > sm.deviceCost)){
-                k = i;
-            }
+    double maxP = -1,minP = 0x3f3f3f3f;
+    int leftCore,leftMem,devicePrice,dayPrice,totalCore,totalMem,leftNodeCore,leftNodeMem,totalNodeCore,totalNodeMem;
+    vector<double> PriceF(vServerModels.size(),-1);
+    for(int i=0;i<vServerModels.size();i++){
+         ServerModel p = vServerModels[i];
+        if(canBuy(p,neededCore,neededMem)){
+            devicePrice = p.deviceCost;
+            dayPrice = p.dailyCost * (T - today);
+            totalCore = p.core;
+            totalMem = p.memory;
+            PriceF[i] = (1.0 * devicePrice + dayPrice) / (totalCore + totalMem);
+            maxP = max(maxP,PriceF[i]),minP = min(minP,PriceF[i]);
         }
-//    }
+    }
+    int k = -1;
+    double balanceF,spaceF,newPriceF,choseF;
+    double maxn = -1;
+    for(int i = 0; i < vServerModels.size(); i++){
+        ServerModel p = vServerModels[i];
+        if(canBuy(p,neededCore,neededMem)){
+               leftCore = p.core - vmd.core;
+               leftMem = p.memory - vmd.memory;
+               totalCore = p.core;
+               totalMem = p.memory;
+               totalNodeCore = totalCore >> 1;
+               totalNodeMem = totalMem >> 1;
+               if(vmd.single){
+                    leftNodeCore = (totalCore >> 1) - vmd.core;
+                    leftNodeMem = (totalMem >> 1) - vmd.memory;
+               }else{
+                    leftNodeCore = (totalCore >> 1) - (vmd.core >> 1);
+                    leftNodeMem = (totalMem >> 1) - (vmd.memory >> 1);
+               }
+               balanceF = 1 - abs(1 - (1.0 * leftNodeCore / totalNodeCore) / (1.0 * leftNodeMem / totalNodeMem));
+               spaceF = (1.0 * leftCore + leftMem ) / MAXSOURCE;
+               newPriceF = 1 - (PriceF[i] - minP) / (maxP - minP);
+               choseF = PriceWeight * newPriceF + (1 - PriceWeight - leftSpaceWeight) * balanceF + leftSpaceWeight * spaceF;
+               if(maxn < choseF) k = i,maxn = choseF;
+        }
+    }
 
 #ifdef DEBUG
     assert(k != -1);
