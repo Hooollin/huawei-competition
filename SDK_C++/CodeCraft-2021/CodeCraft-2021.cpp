@@ -35,7 +35,7 @@ int MAX_SERVERMODEL_MEMORY = 0;
 int MAXSOURCE = 0;
 
 // 权重值
-const double SelectWeight = 0.8;
+const double SelectWeight = 0.2;
 const double PurchaseWeight = 0.8;
 
 using namespace std;
@@ -515,17 +515,17 @@ pair<double,int> selectServerCal(Server &currServer, VirtualMachineModel &vmd,in
 pair<int,int> selectServer(VirtualMachineModel vmd){
     double maxn = 0; //函数获得的最大值
     pair<double,int> res;//返回值
-    int choice;
+    int finalChoice;
     int targetServerIdx = -1;
     for(int i = 0; i < vServers.size(); i++){
         Server currServer = vServers[i];
-        choice = canPut(currServer,vmd);
+        int choice = canPut(currServer,vmd);
         if(choice > 0){
             res = selectServerCal(currServer,vmd,choice);
-            if(res.first > maxn)  maxn = res.first,targetServerIdx = i,choice = res.second;
+            if(res.first > maxn)  maxn = res.first,targetServerIdx = i,finalChoice = res.second;
         }
     }
-    return targetServerIdx == -1 ? make_pair(-1,-1) : make_pair(vServers[targetServerIdx].id,choice);
+    return targetServerIdx == -1 ? make_pair(-1,-1) : make_pair(vServers[targetServerIdx].id,finalChoice);
 }
 
 bool canBuy(ServerModel sm, int neededCore, int neededMem){
