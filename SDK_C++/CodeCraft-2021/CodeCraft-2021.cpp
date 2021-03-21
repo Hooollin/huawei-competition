@@ -37,7 +37,7 @@ int MAXSOURCE = 0;
 // È¨ÖØÖµ
 double SelectWeight = 1.0;
 double DayWeight = 0.8;
-double PriceWeight = 0.95;
+double PriceWeight = 1.0;
 double leftSpaceWeight = 0.0;
 using namespace std;
 
@@ -625,7 +625,7 @@ pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T){
             dayPrice = p.dailyCost * (T - today);
             totalCore = p.core;
             totalMem = p.memory;
-            PriceF[i] = (1.0 * devicePrice + dayPrice) / (totalCore + totalMem);
+            PriceF[i] = devicePrice + dayPrice;
             maxP = max(maxP,PriceF[i]),minP = min(minP,PriceF[i]);
         }
     }
