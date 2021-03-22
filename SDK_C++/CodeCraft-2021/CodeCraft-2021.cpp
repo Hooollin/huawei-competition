@@ -984,17 +984,17 @@ void migrate(){
         fragments.push_back(fragment);
         serverIdxs.push_back(idx++);
     }
-    // 通过chipF排序，将排序后靠前的服务器中虚拟机往碎片小的虚拟机中放
+    // 通过chipF排序，将排序后下标小的服务器中虚拟机往下标大的服务器中放
     sort(serverIdxs.begin(), serverIdxs.end(), [&](int a, int b){
             return fragments[a] < fragments[b];
             });
     for(int i = 0; i < serverIdxs.size() && totalOperation > 0; i++){
-        // fromServer: 需要移除虚拟的服务器
+        // fromServer: 当前需要移除虚拟机的服务器
         int fromServerIdx = serverIdxs[i];
-        // 需要移除虚拟机在vServers中的下标
+        // 需要移除虚拟机的服务器在vServers中的下标
         int fromServerId = vServers[fromServerIdx].id;
         
-        // 存储在下面循环中被移动到了新的服务器的vmid
+        // 存储循环中被移动到了新的服务器的虚拟机的vmid
         vector<int> modified;
 
         for(auto vmid : mServerVirtualMachine[fromServerId]){
@@ -1003,7 +1003,7 @@ void migrate(){
 #endif
             // 要被迁移的虚拟机
             VirtualMachine vm = mVmidVirtualMachine[vmid];
-            // 从碎片小的服务器往下招，直到第一个可以放下这个虚拟机的服务器
+            // 从碎片小的服务器往下找，直到第一个可以放下这个虚拟机的服务器
             for(int j = serverIdxs.size() - 1; j > i; j--){
                 // toServer：被迁移虚拟机的去向
                 int toServerIdx = serverIdxs[j];
