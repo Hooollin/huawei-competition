@@ -972,7 +972,7 @@ bool compareNode(Node nodeA, Node nodeB, VirtualMachine vm){
 }
 
 void migrate(){
-    int totalOperation = 3 * mVmidVirtualMachine.size() / 1000 / 2;
+    int totalOperation = 2 * mVmidVirtualMachine.size() / 1000;
     vector<double> fragments;
     vector<int> serverIdxs;
     int idx = 0;
