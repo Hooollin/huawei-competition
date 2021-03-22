@@ -972,8 +972,11 @@ bool compareNode(Node nodeA, Node nodeB, VirtualMachine vm){
 }
 
 void migrate(){
-    int totalOperation = 2 * mVmidVirtualMachine.size() / 1000;
+    // 在这一轮总共可以迁移的次数
+    int totalOperation = 21 * mVmidVirtualMachine.size() / 1000 / 10;
+    // 存储所有server的chipF
     vector<double> fragments;
+    // vServers的下标，用于排序
     vector<int> serverIdxs;
     int idx = 0;
     for(auto &server : vServers){
@@ -981,31 +984,39 @@ void migrate(){
         fragments.push_back(fragment);
         serverIdxs.push_back(idx++);
     }
-
+    // 通过chipF排序，将排序后靠前的服务器中虚拟机往碎片小的虚拟机中放
     sort(serverIdxs.begin(), serverIdxs.end(), [&](int a, int b){
             return fragments[a] < fragments[b];
             });
-    // 对所有排好序的虚拟机，
-
     for(int i = 0; i < serverIdxs.size() && totalOperation > 0; i++){
+        // fromServer: 需要移除虚拟的服务器
         int fromServerIdx = serverIdxs[i];
+        // 需要移除虚拟机在vServers中的下标
         int fromServerId = vServers[fromServerIdx].id;
+        
+        // 存储在下面循环中被移动到了新的服务器的vmid
         vector<int> modified;
 
         for(auto vmid : mServerVirtualMachine[fromServerId]){
 #ifdef DEBUG
             assert(mVmidVirtualMachine.find(vmid) != mVmidVirtualMachine.end());
 #endif
+            // 要被迁移的虚拟机
             VirtualMachine vm = mVmidVirtualMachine[vmid];
+            // 从碎片小的服务器往下招，直到第一个可以放下这个虚拟机的服务器
             for(int j = serverIdxs.size() - 1; j > i; j--){
+                // toServer：被迁移虚拟机的去向
                 int toServerIdx = serverIdxs[j];
+                // toServer在vServers中的下标
                 int toServerId = vServers[toServerIdx].id;
-
+                
+                // choice可以放在哪个结点
                 int choice = canPut(vServers[toServerId], vm);
                 if(choice > 0){
                     string output;
                     output += "(" + to_string(vmid) + ", " + to_string(mLocalServerIdGlobalServerId[toServerId]);
                     if(vm.getSingle()){
+                        // 如果是单节点并且两个都能放，那么放在剩余资源多的结点上
                         if(choice == A){
                             output += ", A";
                         }else if(choice == B){
@@ -1020,13 +1031,17 @@ void migrate(){
                     }
                     output += ")";
                     vMigrations.push_back(output);
+                    // 迁移到新的服务器上
                     migrateVirtualMachineToServer(vmid, {toServerId, choice});
+                    // 在for loop中修改集合中的元素会导致bug
                     modified.push_back(vmid);
+                    // 可迁移次数减1
                     totalOperation -= 1;
                     break;
                 }
             }
         }
+        // 更新数据结构
         for(auto &vmid : modified){
             mServerVirtualMachine[fromServerIdx].erase(vmid);
         }
