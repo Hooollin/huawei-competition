@@ -20,7 +20,7 @@
 #define B 4
 #define BOTH 5
 #define NONE 0
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 int addcount = 0;
@@ -702,7 +702,6 @@ int buyServer(int day, int T, int neededCore, int neededMem){
 
 pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T){
     int newServerId = getNextServerId();
-
     //当前虚拟机需要的core和内存大小
     int neededCore = vmd.core, neededMem = vmd.memory;
     if(vmd.single){
@@ -834,13 +833,14 @@ void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, pair<int,int> 
     assert(canPut(server, vmd));
 #endif
     updateResource(server, node, vmd.core, vmd.memory, false);
-    mVirtualMachineServer[vmid] = {serverId, node};
     if(mServerVirtualMachine.find(serverId) == mServerVirtualMachine.end()){
         mServerVirtualMachine[serverId] = set<int>();
     }
 #ifdef DEBUG
     assert(vmid != 0);
 #endif
+
+    mVirtualMachineServer[vmid] = {serverId, node};
     mServerVirtualMachine[serverId].insert(vmid);
     mSeverIdServer[serverId] = server;
     vServers[mServerIdVectorPos[serverId]] = server;
@@ -867,10 +867,6 @@ void migrateVirtualMachineToServer(int vmid, pair<int, int> serverAndNode){
 
     mVirtualMachineServer[vmid] = serverAndNode;
     
-#ifdef DEBUG
-    assert(vmid != 0);
-#endif
-    mServerVirtualMachine[fromServer.id].erase(vmid);
     mServerVirtualMachine[toServer.id].insert(vmid);
 }
 
@@ -891,8 +887,6 @@ void allocateServer(OP addop, int today, int T){
     mVmidVirtualMachineModel[vmid] = vmd;
     putVirtualMachineToServer(vmd, vmid, serverAndNode);
 }
-
-
 
 
 void releaseRes(OP delop){
@@ -929,18 +923,24 @@ void doOutput(){
             mLocalServerIdGlobalServerId[serverid] = getNextGlobalServerId();
         }
         string curr = "(" + p.first + ", " + to_string(p.second.size()) + ")";
+#ifndef DEBUG
         cout << curr << endl;
+#endif
     }
 
     //migration
     cout << "(" << "migration, " << vMigrations.size() << ")" << endl;
     for(auto &s : vMigrations){
+#ifndef DEBUG
         cout << s << endl;
+#endif
     }
 
     //输出deployment
     for(auto &p : vDeployments){
+#ifndef DEBUG
         cout << makeDeploymentOutput(p.first, p.second) << endl;
+#endif
     }
 }
 
@@ -972,7 +972,7 @@ bool compareNode(Node nodeA, Node nodeB, VirtualMachine vm){
 }
 
 void migrate(){
-    int totalOperation = 5 * mVmidVirtualMachine.size() / 1000;
+    int totalOperation = 3 * mVmidVirtualMachine.size() / 1000 / 2;
     vector<double> fragments;
     vector<int> serverIdxs;
     int idx = 0;
@@ -981,23 +981,22 @@ void migrate(){
         fragments.push_back(fragment);
         serverIdxs.push_back(idx++);
     }
-    assert(serverIdxs.size() == vServers.size());
 
     sort(serverIdxs.begin(), serverIdxs.end(), [&](int a, int b){
             return fragments[a] < fragments[b];
             });
+    // 对所有排好序的虚拟机，
+
     for(int i = 0; i < serverIdxs.size() && totalOperation > 0; i++){
         int fromServerIdx = serverIdxs[i];
         int fromServerId = vServers[fromServerIdx].id;
+        vector<int> modified;
 
         for(auto vmid : mServerVirtualMachine[fromServerId]){
-            cout << vmid << endl;
-            if(mVmidVirtualMachine.find(vmid) != mVmidVirtualMachine.end()){
-                cout << mVmidVirtualMachineModel[vmid].tostring() << endl;
-                exit(0);
-            }
+#ifdef DEBUG
+            assert(mVmidVirtualMachine.find(vmid) != mVmidVirtualMachine.end());
+#endif
             VirtualMachine vm = mVmidVirtualMachine[vmid];
-
             for(int j = serverIdxs.size() - 1; j > i; j--){
                 int toServerIdx = serverIdxs[j];
                 int toServerId = vServers[toServerIdx].id;
@@ -1022,16 +1021,23 @@ void migrate(){
                     output += ")";
                     vMigrations.push_back(output);
                     migrateVirtualMachineToServer(vmid, {toServerId, choice});
+                    modified.push_back(vmid);
                     totalOperation -= 1;
                     break;
                 }
             }
+        }
+        for(auto &vmid : modified){
+            mServerVirtualMachine[fromServerIdx].erase(vmid);
         }
     }
 }
 
 
 void solve(int today, int T){
+#ifdef DEBUG
+    cout << today << endl;
+#endif
     // 顺序遍历每次操作
     migrate();
     for(auto & op : vOperations){
