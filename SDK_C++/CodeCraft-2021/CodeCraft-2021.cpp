@@ -22,7 +22,7 @@
 #define B 4
 #define BOTH 5
 #define NONE 0
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 int addcount = 0;
@@ -31,7 +31,6 @@ int delcount = 0;
 
 // 用来生成服务器编号
 int localServerNum = 0;
-double timeLeft = 0.0;
 int globalServerNumber = 0;
 
 long long MAX_TIME;
@@ -49,8 +48,8 @@ int MAXSOURCE = 0;
 // 权重值
 double SelectWeight = 1.0;
 double DayWeight = 0.8;
-double PriceWeight = 1.;
-double leftSpaceWeight = 0.;
+double PriceWeight = 1.0;
+double leftSpaceWeight = 0.0;
 
 using namespace std;
 
@@ -329,6 +328,14 @@ pair<double,int> selectServerCal(Server &currServer, VirtualMachineModel &vmd,in
 
 vector<OP> vOperations;
 
+inline int read(){
+   int s=0,w=1;
+   char ch=getchar();
+   while(ch<'0'||ch>'9'){if(ch=='-')w=-1;ch=getchar();}
+   while(ch>='0'&&ch<='9') s=s*10+ch-'0',ch=getchar();
+   return s*w;
+}
+
 void readServerModel(){
     ServerModel sm;
 
@@ -444,23 +451,18 @@ unordered_map<int, Server> mSeverIdServer;     //服务器编号到服务器的�
 unordered_map<int, int> mServerIdVectorPos;    //服务器编号到vector下标的映射
 
 //输出数据
-vector<string> vPurchases;
-vector<string> vMigrations;
-vector<pair<int, int>> vDeployments;
+vector<string> vPurchases = vector<string>(10000);
+vector<string> vMigrations = vector<string>(10000);
+vector<pair<int, int>> vDeployments = vector<pair<int, int>>(10000);
 
-vector<int> vPurchasedServers;
+vector<int> vPurchasedServers = vector<int>(10000);
 
 void initializeOperationVector(){
     vOperations.clear();
-    vOperations.resize(0);
     vPurchases.clear();
-    vPurchases.resize(0);
     vMigrations.clear();
-    vMigrations.resize(0);
     vDeployments.clear();
-    vDeployments.resize(0);
     vPurchasedServers.clear();
-    vPurchasedServers.resize(0);
 }
 
 // purchase时获取服务器编号
@@ -545,24 +547,6 @@ double similarity(VirtualMachineModel vmd, Server server){
     return abs((double)vmd.core / vmd.memory - (double)server.getCore() / server.getMemory());
 }
 
-// 没用
-double getFragmentRatio(Server &currServer, VirtualMachineModel vmd, int occupyACore, int occupyAMem, int occupyBCore, int occupyBMem){
-    int leftACore = currServer.nodeA.coreRem - occupyACore, leftBCore = currServer.nodeB.coreRem - occupyBCore;
-    int leftAMem = currServer.nodeA.memoryRem - occupyAMem,leftBMem = currServer.nodeB.memoryRem - occupyBMem;
-    int totalCore = currServer.getCore() >> 1;
-    int totalMem = currServer.getMemory() >> 1;
-    //计算碎片参数
-    double chipF;
-    if(occupyACore == 0){
-        chipF = (1.0 * MAXSOURCE - leftBCore - leftBMem) / MAXSOURCE;
-    } else if(occupyBCore == 0){
-        chipF = (1.0 * MAXSOURCE - leftACore - leftAMem) / MAXSOURCE;
-    } else{
-        chipF = (1.0 * MAXSOURCE - leftACore - leftAMem - leftBCore - leftBMem) / MAXSOURCE;
-    }
-    return chipF;
-}
-
 //计算选择值
 double selectServerFun(Server &currServer,VirtualMachineModel vmd, int occupyACore,int occupyAMem,int occupyBCore,int occupyBMem){
     int leftACore = currServer.nodeA.coreRem - occupyACore, leftBCore = currServer.nodeB.coreRem - occupyBCore;
@@ -587,7 +571,7 @@ double selectServerFun(Server &currServer,VirtualMachineModel vmd, int occupyACo
     return SelectWeight * chipF + balanceF * (1 - SelectWeight);
 }
 
-pair<double,int> selectServerCal(Server &currServer, VirtualMachineModel &vmd,int choice){
+pair<double,int> selectServerCal(Server &currServer, VirtualMachineModel &vmd, int choice){
     double res = 0;
     int choseNode = 0;
     double cal;
@@ -1004,28 +988,32 @@ bool compareNode(Node nodeA, Node nodeB, VirtualMachine vm){
     return nodeA.memoryRem > nodeB.memoryRem;
 }
 
+double getServerSize(int a){
+return (vServers[a].getCore() + vServers[a].getMemory());
+}
+
 void optimized_migrate(){
-// 在这一轮总共可以迁移的次数
+    // 在这一轮总共可以迁移的次数
 #ifdef DEBUG
     assert(mVmidVirtualMachine.size() == VM_AMOUNT);
 #endif
-    int totalOperation = 2 * VM_AMOUNT / 1000;
+    int totalOperation = 5 * VM_AMOUNT / 1000;
     //int totalOperation = 3 * mVmidVirtualMachine.size() / 1000;
     // int totalOperation = 2 * mVmidVirtualMachine.size() / 1000;
 
     // 存储所有server的chipF
-    vector<double> fragments;
+    vector<int> fragments;
     // vServers的下标，用于排序
     vector<int> serverIdxs;
     int idx = 0;
     for(auto &server : vServers){
-        double fragment = (1.0 * MAXSOURCE - server.nodeA.coreRem - server.nodeA.memoryRem - server.nodeB.coreRem - server.nodeB.memoryRem) / MAXSOURCE;
+        int fragment = (MAXSOURCE - server.nodeA.coreRem - server.nodeA.memoryRem - server.nodeB.coreRem - server.nodeB.memoryRem);
         fragments.push_back(fragment);
         serverIdxs.push_back(idx++);
     }
     // 通过chipF排序，将排序后下标小的服务器中虚拟机往下标大的服务器中放
     sort(serverIdxs.begin(), serverIdxs.end(), [&](int a, int b){
-            return fragments[a] < fragments[b];
+            return fragments[a] < fragments[b] || (fragments[a] == fragments[b] && getServerSize(a) < getServerSize(b));
             });
     int end = serverIdxs.size() - 1;
     while(end > 0 && abs(fragments[serverIdxs[end]] - 1.) < 1e-3){
@@ -1049,13 +1037,13 @@ void optimized_migrate(){
             assert(mVmidVirtualMachine.find(vmid) != mVmidVirtualMachine.end());
 #endif
             // 要被迁移的虚拟机
-            VirtualMachine vm = mVmidVirtualMachine[vmid];
+            VirtualMachine &vm = mVmidVirtualMachine[vmid];
 
-            //std::chrono::time_point<chrono::high_resolution_clock> now = chrono::high_resolution_clock::now();
-             //从碎片小的服务器往下找，直到第一个可以放下这个虚拟机的服务器
+            std::chrono::time_point<chrono::high_resolution_clock> now = chrono::high_resolution_clock::now();
+            //从碎片小的服务器往下找，直到第一个可以放下这个虚拟机的服务器
             while(last > i && totalOperation > 0){
                 //long long findDuration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - now).count();
-                //if(findDuration > 1000){
+                //if(findDuration >= 300){
                 //    break;
                 //}
                 // toServer：被迁移虚拟机的去向
@@ -1075,14 +1063,25 @@ void optimized_migrate(){
                             output += ", A";
                         }else if(choice == B){
                             output += ", B";
-                        }else if(compareNode(mSeverIdServer[toServerId].nodeA, mSeverIdServer[toServerId].nodeB, vm)){
-                            output += ", A";
-                            choice = A;
                         }else{
-                            output += ", B";
-                            choice = B;
+                            pair<int, int> serverandnode = selectServerCal(vServers[toServerIdx], mVmidVirtualMachineModel[vmid], choice);
+                            if(serverandnode.second == A){
+                                output += ", A";
+                                choice = A;
+                            }else{
+                                output += ", B";
+                                choice = B;
+                            }
                         }
                     }
+                        //else if(compareNode(mSeverIdServer[toServerId].nodeA, mSeverIdServer[toServerId].nodeB, vm)){
+                        //    output += ", A";
+                        //    choice = A;
+                        //}else{
+                        //    output += ", B";
+                        //    choice = B;
+                        //}
+
                     output += ")";
                     vMigrations.push_back(output);
                     // 迁移到新的服务器上
@@ -1093,7 +1092,7 @@ void optimized_migrate(){
                     totalOperation -= 1;
                     break;
                 }else{
-                    last -= 1;
+                    last -= 3;
                 }
             }
             long long totalDuration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
@@ -1106,9 +1105,10 @@ void optimized_migrate(){
         for(auto &p : modified){
             mServerVirtualMachineEn[fromServerId].erase(p);
         }
-    
+
     }
 }
+
 void migrate(){
     // 在这一轮总共可以迁移的次数
 #ifdef DEBUG
@@ -1283,8 +1283,7 @@ int main()
 
     //计算相似度
     cin >> T;
-    MAX_TIME = 90 * 1000 * 1000 / T;
-    timeLeft = (double)90 / T;
+    MAX_TIME = 70 * 1000 * 1000 / T;
     for(int i = 1; i <= T; i++){
         int R;
         cin >> R;
