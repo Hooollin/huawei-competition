@@ -31,6 +31,7 @@ int delcount = 0;
 
 // 用来生成服务器编号
 int localServerNum = 0;
+double timeLeft = 0.0;
 int globalServerNumber = 0;
 
 long long MAX_TIME;
@@ -46,12 +47,19 @@ int VM_AMOUNT = 0;
 int MAXSOURCE = 0;
 
 // 权重值
-double SelectWeight = .9;
+//购买权重（和为1）
+double buy_PriceWeight = 0.2;//按价格购买权重
+double buy_BalanceWeight = 0.15;//购买平衡权重
+double buy_leftSpaceWeight = 0.0;//剩余空间
+double buy_PriceWithCapacituWeight = 0.4;//性价比
+double buy_SmWeight = 0.0;//相似性购买
 // double DayWeight = 0.8;
-double PriceWeight = 0.9;
-double leftSpaceWeight = 0.;
-double PriceWithCapacituWeight = 0.1;
-double SmWeight = 0.5;
+
+//放置权值(和为1)
+double put_SelectWeight = 0.35;//碎片选择权重
+double put_NodeBlanceWeight = 0.3;//节点平衡
+double put_SimWeight = 0.2;//相似放置
+double put_BalanceWeight = 0.15;//平衡参数
 
 using namespace std;
 
@@ -575,19 +583,28 @@ double selectServerFun(Server &currServer,VirtualMachineModel vmd, int occupyACo
     double total = currServer.getCore() + currServer.getMemory();
     double Sim = 0.;
     if(occupyACore == 0){
-        chipF = (1.0 * totalCore + totalMem - leftBCore - leftBMem) / (total/2);
+        // chipF = (1.0 * totalCore + totalMem - leftBCore - leftBMem) / (total/2);
+        chipF = ((1.0 * totalCore - leftBCore) / currServer.getCore() + (1.0 * totalMem - leftBMem) / currServer.getMemory()) / (total/2);
+        // chipF = (1.0 *totalMem - leftBMem) / (total/2);
+        Sim = 1 - (abs(currServer.getCore() - occupyBCore) + abs(currServer.getMemory() - occupyBMem)) / MAXSOURCE;
     } else if(occupyBCore == 0){
-        chipF = (1.0 * totalCore + totalMem - leftACore - leftAMem) / (total/2);
+        // chipF = (1.0 * totalCore + totalMem - leftACore - leftAMem) / (total/2);
+        chipF = ((1.0 * totalCore - leftACore) / currServer.getCore() + (1.0 * totalMem - leftAMem) / currServer.getMemory()) / (total/2);
+        // chipF = (1.0 *totalMem - leftAMem) / (total/2);
+        Sim = 1 - (abs(currServer.getCore() - occupyACore) + abs(currServer.getMemory() - occupyAMem)) / MAXSOURCE;
     } else{
         chipF = (1.0 * total- leftACore - leftAMem - leftBCore - leftBMem) / total;
+        // chipF = (1.0 * total - leftAMem - leftBMem) / total;
+        Sim = 1 - (abs((currServer.getCore()>>1) - occupyBCore) + abs((currServer.getMemory()>>1) - occupyBMem)) / MAXSOURCE;
     }
 
     //cout<<"chipF:"<<chipF<<" "<<MAXSOURCE<<" "<<leftACore<<" "<<leftAMem<<" "<<leftBCore<<" "<<leftBMem<<endl;
     //计算平衡参数
     double balanceF =(abs(1 - abs(1.0 * leftACore / totalCore  - 1.0 * leftAMem / totalMem)) + abs(1 - abs(1.0 * leftBCore / totalCore - 1.0 * leftBMem / totalMem))) / 2;
+    double balanceNode = 1 - (abs(leftACore-leftBCore)/totalCore + abs(leftAMem - leftBMem)/totalMem)/total;
     //cout<<"balanceF:"<<balanceF<<endl;
     //返回加权值
-    return SelectWeight * chipF + balanceF * (1 - SelectWeight);
+    return put_SelectWeight * chipF + put_SimWeight*Sim + balanceF * put_BalanceWeight + put_NodeBlanceWeight*balanceNode;
 }
 
 pair<double,int> selectServerCal(Server &currServer, VirtualMachineModel &vmd,int choice){
@@ -726,28 +743,32 @@ pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T){
 
     double maxP = -1,minP = 0x3f3f3f3f;
     double maxC = -1,minC = 0x3f3f3f3f;
-    int maxSm = -1, minSm = 0x3f3f3f3f;
+    double maxSm = -1, minSm = 0x3f3f3f3f;
     int leftCore,leftMem,devicePrice,dayPrice,totalCore,totalMem,leftNodeCore,leftNodeMem,totalNodeCore,totalNodeMem;
+    
     vector<double> PriceF(vServerModels.size(),-1);
     vector<double> PriceC(vServerModels.size(),-1);
-    vector<int> Sm(vServerModels.size(),-1);
-    for(int i=0;i<vServerModels.size();i++){
+    vector<double> Sm(vServerModels.size(),-1);
+    for(int i=0; i<vServerModels.size(); i++){
         ServerModel p = vServerModels[i];
-        if(canBuy(p,neededCore,neededMem)){
+        if(canBuy(p,neededCore, neededMem)){
             devicePrice = p.deviceCost;
             dayPrice = p.dailyCost * (T - today);
             totalCore = p.core;
             totalMem = p.memory;
             PriceF[i] = devicePrice + dayPrice;
-            PriceC[i] = (devicePrice + dayPrice) / (totalMem + totalCore);
+            // PriceC[i] = (devicePrice + dayPrice) / (totalMem + totalCore);
+            PriceC[i] = ((devicePrice + dayPrice) / totalMem) + (devicePrice + dayPrice) / totalCore;
+            //*((1.0*devicePrice / p.core) / (1.0*devicePrice / p.memory))
             Sm[i] = abs(totalCore - MEAN_VM_CORE) + abs(totalMem - MEAN_VM_MEMORY);
-            maxP = max(maxP,PriceF[i]),minP = min(minP,PriceF[i]);
-            maxC = max(maxC,PriceC[i]),minC = min(minC,PriceC[i]);
-            maxSm = max(maxSm,Sm[i]),minSm = min(minSm,Sm[i]);
+            // Sm[i] = abs(totalCore - vmd.core) / totalCore + abs(totalMem - vmd.memory) / totalMem;
+            maxP = max(maxP,PriceF[i]), minP = min(minP,PriceF[i]);
+            maxC = max(maxC,PriceC[i]), minC = min(minC,PriceC[i]);
+            maxSm = max(maxSm,Sm[i]), minSm = min(minSm,Sm[i]);
         }
     }
     int k = -1;
-    double balanceF,spaceF,newPriceF,choseF, newPriceC,newSm;
+    double balanceF,spaceF,newPriceF,choseF, newPriceC, newSm;
     double maxn = -1;
     for(int i = 0; i < vServerModels.size(); i++){
         ServerModel p = vServerModels[i];
@@ -768,9 +789,10 @@ pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T){
             balanceF = 1 - abs(1 - (1.0 * leftNodeCore / totalNodeCore) / (1.0 * leftNodeMem / totalNodeMem));
             spaceF = (1.0 * leftCore + leftMem ) / MAXSOURCE;
             newPriceF = 1 - (PriceF[i] - minP) / (maxP - minP);
-            newPriceC = 1- (PriceC[i] - minC) / (maxC - minC);
-            newSm = 1- (Sm[i] - minSm) / (maxSm - minSm);
-            choseF = (PriceWeight-PriceWithCapacituWeight-SmWeight) * newPriceF + (1 - PriceWeight - leftSpaceWeight) * balanceF + leftSpaceWeight * spaceF + PriceWithCapacituWeight*newPriceC + newSm*SmWeight;
+            newPriceC = 1 - (PriceC[i] - minC) / (maxC - minC);
+            newSm = 1 - (Sm[i] - minSm) / (maxSm - minSm);
+            // choseF = (PriceWeight-PriceWithCapacituWeight-SmWeight) * newPriceF + (1 - PriceWeight - leftSpaceWeight) * balanceF + leftSpaceWeight * spaceF + PriceWithCapacituWeight*newPriceC + newSm*SmWeight;
+            choseF = buy_PriceWeight * newPriceF + buy_BalanceWeight * balanceF + buy_leftSpaceWeight * spaceF + buy_PriceWithCapacituWeight*newPriceC + newSm*buy_SmWeight;
             // cout<<choseF<<endl;
             if(maxn < choseF) k = i,maxn = choseF;
         }
@@ -1041,13 +1063,12 @@ void optimized_migrate(){
     sort(serverIdxs.begin(), serverIdxs.end(), [&](int a, int b){
             return fragments[a] < fragments[b];
             });
+    sort(fragments.begin(),fragments.end());
     int end = serverIdxs.size() - 1;
     while(end > 0 && abs(fragments[serverIdxs[end]] - 1.) < 1e-3){
         end -= 1;
     }
-    bool timeUp = false;
-    std::chrono::time_point<chrono::high_resolution_clock> start = chrono::high_resolution_clock::now();
-    for(int i = 0; i < end && totalOperation > 0 && !timeUp; i++){
+    for(int i = 0; i < end && totalOperation > 0; i++){
         // fromServer: 当前需要移除虚拟机的服务器
         int fromServerIdx = serverIdxs[i];
         // 需要移除虚拟机的服务器在vServers中的下标
@@ -1059,13 +1080,14 @@ void optimized_migrate(){
         int last = end;
         for(auto p : mServerVirtualMachineEn[fromServerId]){
             int vmid = p.second;
+            VirtualMachine &vm = mVmidVirtualMachine[vmid];
+            double chipF = (1.0 * MAXSOURCE - vm.getCore() - vm.getMemory()) / MAXSOURCE;
+            last = upper_bound(fragments.begin(),fragments.end(),chipF) - fragments.begin();
+            last --;
 #ifdef DEBUG
             assert(mVmidVirtualMachine.find(vmid) != mVmidVirtualMachine.end());
 #endif
-            // 要被迁移的虚拟机
-            VirtualMachine vm = mVmidVirtualMachine[vmid];
-
-            //std::chrono::time_point<chrono::high_resolution_clock> now = chrono::high_resolution_clock::now();
+            //甩头d::chrono::time_point<chrono::high_resolution_clock> now = chrono::high_resolution_clock::now();
              //从碎片小的服务器往下找，直到第一个可以放下这个虚拟机的服务器
             while(last > i && totalOperation > 0){
                 //long long findDuration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - now).count();
@@ -1110,19 +1132,16 @@ void optimized_migrate(){
                     last -= 1;
                 }
             }
-            long long totalDuration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
-            if(totalDuration > MAX_TIME){
-                timeUp = true;
-            }
-            break;
+            //break;
         }
         // 更新数据结构
         for(auto &p : modified){
             mServerVirtualMachineEn[fromServerId].erase(p);
         }
-    
+
     }
 }
+
 void migrate(){
     // 在这一轮总共可以迁移的次数
 #ifdef DEBUG
@@ -1297,7 +1316,8 @@ int main()
 
     //计算相似度
     cin >> T;
-    MAX_TIME = 68 * 1000 * 1000 / T;
+    MAX_TIME = 90 * 1000 * 1000 / T;
+    timeLeft = (double)90 / T;
     for(int i = 1; i <= T; i++){
         int R;
         cin >> R;
