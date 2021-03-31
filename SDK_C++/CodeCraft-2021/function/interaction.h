@@ -1,6 +1,6 @@
 #pragma once
 
-//define DEBUG
+//#define DEBUG
 //#define CHECKUSAGE
 
 #include <iostream>
@@ -223,6 +223,7 @@ void doOutput(){
         cout << makeDeploymentOutput(p.first, p.second) << endl;
 #endif
     }
+    fflush(stdout);
 }
 
 string makeMigrateOutput(int vmid,int serverId,int node){
