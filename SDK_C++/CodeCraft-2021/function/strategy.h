@@ -194,11 +194,11 @@ double selectServerFun(Server &currServer, VirtualMachineModel vmd, int occupyAC
     double total = currServer.getCore() + currServer.getMemory();
     double Sim = 0.0, Near = 0.0;
 
-    if(occupyACore == 0){
+    if(occupyACore == 0 && occupyAMem == 0){
         chipF = ((1.0 * totalCore - leftBCore) / currServer.getCore() + (1.0 * totalMem - leftBMem) / currServer.getMemory()) / (total / 2);
         Near = 1 - (abs(currServer.getCore() - occupyBCore) + abs(currServer.getMemory() - occupyBMem)) / MAXSOURCE;
         Sim = 1.0 - abs(1.0 * occupyBCore / occupyBMem - 1.0 * currServer.getCore() / currServer.getMemory()) / (MAX_SIMI - MIN_SIMI);
-    } else if(occupyBCore == 0){
+    } else if(occupyBCore == 0 && occupyBMem == 0){
         chipF = ((1.0 * totalCore - leftACore) / currServer.getCore() + (1.0 * totalMem - leftAMem) / currServer.getMemory()) / (total / 2);
         Near = 1 - (abs(currServer.getCore() - occupyACore) + abs(currServer.getMemory() - occupyAMem)) / MAXSOURCE;
         Sim = 1. - abs(1.0 * occupyACore / occupyAMem - 1.0 * currServer.getCore() / currServer.getMemory()) / (MAX_SIMI - MIN_SIMI);
