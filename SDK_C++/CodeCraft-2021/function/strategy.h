@@ -587,7 +587,7 @@ void solve(int today, int T){
     }
 #ifdef DEBUG
     for(Server p : vAllServer){
-        if(p.nodeA.coreUsed > 0 || p.nodeB.coreUsed > 0 || p.nodeA.memoryRem > 0 || p.nodeB.memoryRem > 0){
+        if(p.nodeA.coreUsed > 0 || p.nodeB.coreUsed > 0 || p.nodeA.memoryUsed > 0 || p.nodeB.memoryUsed > 0){
             dailycost += p.getDailyCost();
         }
     }
