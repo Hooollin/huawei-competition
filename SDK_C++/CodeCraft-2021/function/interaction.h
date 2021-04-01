@@ -197,24 +197,32 @@ void doOutput(){
         }
         cnt[type].push_back(serverId);
     }
+#ifndef SEEK_PARAMETER
     cout << "(purchase, " << to_string(cnt.size()) << ")" << endl;
+#endif
     for(auto &p : cnt){
         for(int serverid : p.second){
             mLocalServerIdGlobalServerId[serverid] = getNextGlobalServerId();
         }
         string curr = "(" + p.first + ", " + to_string(p.second.size()) + ")";
 #ifndef DEBUG
+#ifndef SEEK_PARAMETER
         cout << curr << endl;
 #endif
+#endif
     }
+#ifndef SEEK_PARAMETER
     //migration
     cout << "(" << "migration, " << vMigration.size() << ")" << endl;
+#endif
     for(auto &s : vMigration){
 #ifdef DEBUG
         vmcount ++;
 #endif // DEBUG
 #ifndef DEBUG
+#ifndef SEEK_PARAMETER
         cout << s << endl;
+#endif
 #endif
     }
 
@@ -237,13 +245,14 @@ string makeMigrateOutput(int vmid,int serverId,int node){
 }
 
 void  statiInformation(){
+    int totalPrice = dailycost;
+#ifndef SEEK_PARAMETER
     cout << "N: " << vServerModel.size() << endl;
     cout << "M: " << vVirtualMachineModel.size() << endl;
     cout << "add count: " << addcount << endl;
     cout << "del count: " << delcount << endl;
     cout << "vm count: " << vmcount << endl;
     int unfilledSize = 0;
-    int totalPrice = dailycost;
     for (auto &s : vAllServer) {
       totalPrice += s.getDeviceCost();
       if (!checkServer(s)) {
@@ -257,6 +266,13 @@ void  statiInformation(){
     }
     cout << "total price: " << totalPrice << " " << vAllServer.size() << " "
          << unfilledSize << endl;
+#endif
+#ifdef SEEK_PARAMETER
+    for(auto &s : vAllServer){
+        totalPrice += s.getDeviceCost();
+    }
+    cout << totalPrice;
+#endif
 }
 
 //测试用，判断server的资源是否合法

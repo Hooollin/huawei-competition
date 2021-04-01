@@ -225,7 +225,7 @@ double selectServerFun(int today, int T, Server &currServer, VirtualMachineModel
     //计算平衡参数
     double balanceF = (abs(1 - abs(1.0 * leftACore / totalCore - 1.0 * leftAMem / totalMem)) + abs(1 - abs(1.0 * leftBCore / totalCore - 1.0 * leftBMem / totalMem))) / 2;
     double balanceNode = 1 - ((double)abs(leftACore - leftBCore) / totalCore + (double)abs(leftAMem - leftBMem) / totalMem) / total;
-    double priceF = ((double)currServer.deviceCost + currServer.dailyCost * (T - today)) / (MAX_DEVICE_COST + MAX_DAILY_COST * T);
+    double priceF = (MAX_DEVICE_COST + MAX_DAILY_COST * T - (double)currServer.deviceCost + currServer.dailyCost * (T - today)) / (MAX_DEVICE_COST + MAX_DAILY_COST * T);
     //返回加权值
     return put_PriceWithCapacityWeight * priceF + put_SelectWeight * chipF + put_SimWeight * Sim + put_NearWeight * Near + balanceF * put_BalanceWeight + put_NodeBlanceWeight * balanceNode;
 }
@@ -811,7 +811,9 @@ void optimized_migrate(int today,int T){
 
 void solve(int today, int T){
 #ifdef DEBUG
+#ifndef SEEK_PARAMETER
   cout << today << " " << vOperation.size() << endl;
+#endif
 #endif
     // 顺序遍历每次操作
     optimized_migrate(today,T);
