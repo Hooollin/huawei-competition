@@ -18,8 +18,8 @@
 
 double buy_PriceWeight = 0.53;//按价格购买权重
 double buy_BalanceWeight = 0.59;//两个节点使用资源比例平衡参数
-double buy_leftSpaceWeight = 0.25;//剩余空间
-double buy_PriceWithCapacituWeight = 0.99;//性价比
+double buy_LeftSpaceWeight = 0.25;        //剩余空间
+double buy_PriceWithCapacityWeight = 0.99; //性价比
 double buy_SmWeight = 0.07;//相似性购买
 // double DayWeight = 0.8;
 
@@ -28,6 +28,7 @@ double put_SelectWeight = 0.07;//碎片选择权重
 double put_NodeBlanceWeight = 0.91;//负载均衡参数
 double put_SimWeight = 0.05;//相似放置
 double put_BalanceWeight = 0.53;//两个节点使用资源比例平衡参数
+double put_PriceWithCapacityWeight = 0.5;
 double put_NearWeight = 0.0;//相近放置
 
 //迁移权值（和为1）
@@ -57,11 +58,11 @@ pair<int,int> makePurchase2(VirtualMachineModel vmd, int today, int T);
 int getNextServerId();
 
 // deployment
-pair<int,int> selectServer(VirtualMachineModel vmd);
+pair<int,int> selectServer(int today, int T, VirtualMachineModel vmd);
 
-double selectServerFun(Server &currServer, VirtualMachineModel vmd, int occupyACore,int occupyAMem,int occupyBCore,int occupyBMem);
+double selectServerFun(int today, int T, Server &currServer, VirtualMachineModel vmd, int occupyACore,int occupyAMem,int occupyBCore,int occupyBMem);
 
-pair<double,int> selectServerCal(Server &currServer, VirtualMachineModel &vmd,int choice);
+pair<double,int> selectServerCal(int today, int T, Server &currServer, VirtualMachineModel &vmd,int choice);
 
 void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, pair<int,int> serverAndNode);
 
@@ -198,7 +199,7 @@ int canPut(Server server, VirtualMachine vm){
 }
 
 //计算选择值
-double selectServerFun(Server &currServer, VirtualMachineModel vmd, int occupyACore,int occupyAMem,int occupyBCore,int occupyBMem){
+double selectServerFun(int today, int T, Server &currServer, VirtualMachineModel vmd, int occupyACore, int occupyAMem, int occupyBCore, int occupyBMem){
     int leftACore = currServer.nodeA.coreRem - occupyACore, leftBCore = currServer.nodeB.coreRem - occupyBCore;
     int leftAMem = currServer.nodeA.memoryRem - occupyAMem, leftBMem = currServer.nodeB.memoryRem - occupyBMem;
     int totalCore = currServer.getCore() >> 1;
@@ -221,42 +222,42 @@ double selectServerFun(Server &currServer, VirtualMachineModel vmd, int occupyAC
         Near = 1 - (abs((currServer.getCore()>>1) - occupyBCore) + abs((currServer.getMemory()>>1) - occupyBMem)) / MAXSOURCE;
         Sim = 1.0 - abs(1.0 * occupyBCore / occupyBMem - 1.0 * currServer.getCore() / currServer.getMemory()) / (MAX_SIMI - MIN_SIMI);
     }
-
     //计算平衡参数
     double balanceF = (abs(1 - abs(1.0 * leftACore / totalCore - 1.0 * leftAMem / totalMem)) + abs(1 - abs(1.0 * leftBCore / totalCore - 1.0 * leftBMem / totalMem))) / 2;
     double balanceNode = 1 - ((double)abs(leftACore - leftBCore) / totalCore + (double)abs(leftAMem - leftBMem) / totalMem) / total;
-
+    double priceF = ((double)currServer.deviceCost + currServer.dailyCost * (T - today)) / (MAX_DEVICE_COST + MAX_DAILY_COST * T);
     //返回加权值
-    return put_SelectWeight * chipF + put_SimWeight * Sim + put_NearWeight * Near + balanceF * put_BalanceWeight + put_NodeBlanceWeight * balanceNode;
+    return put_PriceWithCapacityWeight * priceF + put_SelectWeight * chipF + put_SimWeight * Sim + put_NearWeight * Near + balanceF * put_BalanceWeight + put_NodeBlanceWeight * balanceNode;
 }
 inline bool serverEmpty(const Server &server){
     return server.nodeA.coreUsed == 0 && server.nodeA.memoryUsed == 0 && server.nodeB.coreUsed == 0 && server.nodeB.memoryUsed == 0;
 
 }
-pair<double,int> selectServerCal(Server &currServer, VirtualMachineModel &vmd,int choice){
+
+pair<double,int> selectServerCal(int today, int T, Server &currServer, VirtualMachineModel &vmd, int choice){
     double res = 0;
     int choseNode = 0;
     double cal;
     if(vmd.single){
         if(choice == A || choice == BOTH){
-            res = selectServerFun(currServer, vmd, vmd.core,vmd.memory,0,0);
+            res = selectServerFun(today, T, currServer, vmd, vmd.core,vmd.memory,0,0);
             choseNode = A;
         }
         if(choice == B || choice == BOTH){
-            cal = selectServerFun(currServer, vmd, 0,0,vmd.core,vmd.memory);
+            cal = selectServerFun(today, T, currServer, vmd, 0,0,vmd.core,vmd.memory);
             if(cal > res){
                 res = cal;
                 choseNode = B;
             }
         }
     }else{
-        res = selectServerFun(currServer,vmd, vmd.core >> 1,vmd.memory >> 1,vmd.core >> 1,vmd.memory >> 1);
+        res = selectServerFun(today, T, currServer,vmd, vmd.core >> 1,vmd.memory >> 1,vmd.core >> 1,vmd.memory >> 1);
         choseNode = BOTH;
     }
     return make_pair(res + (serverEmpty(currServer) ? 0 : 1),choseNode);
 }
 
-pair<int,int> selectServer(VirtualMachineModel vmd){
+pair<int,int> selectServer(int today, int T, VirtualMachineModel vmd){
     double maxn = 0; //函数获得的最大值
     pair<double,int> res;//返回值
     int finalChoice;
@@ -265,7 +266,7 @@ pair<int,int> selectServer(VirtualMachineModel vmd){
       Server currServer = vAllServer[i];
       int choice = canPut(currServer, vmd);
       if (choice > 0) {
-        res = selectServerCal(currServer, vmd, choice);
+        res = selectServerCal(today, T, currServer, vmd, choice);
         if (res.first > maxn)
           maxn = res.first, targetServerIdx = i, finalChoice = res.second;
       }
@@ -353,8 +354,8 @@ pair<int,int> makePurchase1(VirtualMachineModel vmd, int today, int T){
         newNear = 1 - (Near[i] - minNear) / (maxNear - minNear);
 
         choseF = buy_PriceWeight * newPriceF + buy_BalanceWeight * balanceF +
-                 buy_leftSpaceWeight * spaceF +
-                 buy_PriceWithCapacituWeight * newPriceC + newSm * buy_SmWeight;
+                 buy_LeftSpaceWeight * spaceF +
+                 buy_PriceWithCapacityWeight * newPriceC + newSm * buy_SmWeight;
 
         if (maxn < choseF)
           k = i, maxn = choseF;
@@ -477,7 +478,7 @@ void allocateServer(OP addop, int today, int T){
     // 需要新增虚拟机的型号
     VirtualMachineModel vmd = mTypeToVirtualMachineModel[addop.machineType];
     //新增的虚拟机实例
-    pair<int,int> serverAndNode = selectServer(vmd);
+    pair<int,int> serverAndNode = selectServer(today, T, vmd);
     if(serverAndNode.first == -1){       // 没有合适的服务器，需要新购买服务器
         serverAndNode = makePurchase(vmd, today, T);
     }
@@ -619,6 +620,101 @@ void small_virtual_machine_migrate(int today,int T){
     return ;
 }
 
+void migrate_by_costperf(int today,int T){
+// 在这一轮总共可以迁移的次数
+#ifdef DEBUG
+  assert(mVmidToVirtualMachine.size() == VM_AMOUNT);
+#endif
+    int totalOperation = 3 * VM_AMOUNT / 100;
+    //int totalOperation = 3 * mVmidVirtualMachine.size() / 1000;
+    // int totalOperation = 2 * mVmidVirtualMachine.size() / 1000;
+
+    // 存储所有server计算生成的函数值
+    vector<int> storage;
+    vector<double> costperf;
+    // vServers的下标，用于排序
+    vector<int> storageIdx;
+    vector<int> costperfIdx;
+    int idx = 0;
+    for (auto &server : vAllServer) {
+      int chipF = MAXSOURCE - server.nodeA.coreRem - server.nodeA.memoryRem -
+           server.nodeB.coreRem - server.nodeB.memoryRem;
+      double costperfF = (double)(server.dailyCost * (T - today) + server.deviceCost) / (server.getCore() + server.getMemory());
+      storage.push_back(chipF);
+      costperf.push_back(costperfF);
+      storageIdx.push_back(idx);
+      costperfIdx.push_back(idx);
+      idx++;
+    }
+    // 通过storage排序，将排序后下标小的服务器中虚拟机往下标大的服务器中放
+    sort(storageIdx.begin(), storageIdx.end(),
+         [&](int a, int b) { return storage[a] < storage[b]; });
+    // 通过性价比排序，江排序后性价比低的往性价比高的服务器中放
+    sort(costperfIdx.begin(), costperfIdx.end(), 
+            [&](int a, int b){ return costperf[a] > costperf[b]; });
+
+    sort(storage.begin(), storage.end());
+    int end = storageIdx.size() - 1;
+    for(int i = 0; i < end && totalOperation > 0; i++){
+        // fromServer: 当前需要移除虚拟机的服务器
+        int fromServerIdx = storageIdx[i];
+        // 需要移除虚拟机的服务器在vServers中的下标
+        int fromServerId = vAllServer[fromServerIdx].id;
+
+        // 存储循环中被移动到了新的服务器的虚拟机的vmid
+        vector<pair<int, int>> modified;
+
+        int last = end;
+        for (auto p : mServerHasVirtualMachine[fromServerId]) {
+          int vmid = p.second;
+          VirtualMachine &vm = mVmidToVirtualMachine[vmid];
+          double chipF =
+              (1.0 * MAXSOURCE - vm.getCore() - vm.getMemory()) / MAXSOURCE;
+          last = upper_bound(storage.begin(), storage.end(), chipF) -
+                 storage.begin();
+          last--;
+#ifdef DEBUG
+          assert(mVmidToVirtualMachine.find(vmid) !=
+                 mVmidToVirtualMachine.end());
+#endif
+             //从碎片小的服务器往下找，直到第一个可以放下这个虚拟机的服务器
+            while(last > i && totalOperation > 0){
+                // toServer：被迁移虚拟机的去向
+                int toServerIdx = storageIdx[last];
+                // toServer在vServers中的下标
+                int toServerId = vAllServer[toServerIdx].id;
+
+                // choice可以放在哪个结点
+                int choice = canPut(vAllServer[toServerId], vm);
+                if(choice > 0 && !serverEmpty(vAllServer[toServerId])){
+                    if(vm.getSingle() && choice == BOTH){
+                        if(compareNode(mServerIdToServer[toServerId].nodeA,mServerIdToServer[toServerId].nodeB,vm)) {
+                          choice = A;
+                        } else {
+                          choice = B;
+                        }
+                    }
+                    vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[toServerId],choice));
+                    // 迁移到新的服务器上
+                    migrateVirtualMachineToServer(vmid, {toServerId, choice});
+                    // 在for loop中修改集合中的元素会导致bug
+                    modified.push_back({vm.getCore() + vm.getMemory(), vmid});
+                    // 可迁移次数减1
+                    totalOperation -= 1;
+                    break;
+                }else{
+                    last -= 1;
+                }
+            }
+        }
+        // 更新数据结构
+        for(auto &p : modified){
+          mServerHasVirtualMachine[fromServerId].erase(p);
+        }
+
+    }
+}
+
 void optimized_migrate(int today,int T){
 // 在这一轮总共可以迁移的次数
 #ifdef DEBUG
@@ -718,8 +814,8 @@ void solve(int today, int T){
   cout << today << " " << vOperation.size() << endl;
 #endif
     // 顺序遍历每次操作
-    //optimized_migrate(today,T);
-    small_virtual_machine_migrate(today,T);
+    optimized_migrate(today,T);
+    //small_virtual_machine_migrate(today,T);
     //migrate();
     for (auto &op : vOperation) {
       switch (op.opType) {

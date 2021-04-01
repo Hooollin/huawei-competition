@@ -17,6 +17,8 @@ int main()
       MAX_SERVERMODEL_CORE = max(MAX_SERVERMODEL_CORE, vServerModel[i].core);
       MAX_SERVERMODEL_MEMORY =
           max(MAX_SERVERMODEL_MEMORY, vServerModel[i].memory);
+      MAX_DEVICE_COST = max(MAX_DEVICE_COST, vServerModel[i].deviceCost);
+      MAX_DAILY_COST = max(MAX_DAILY_COST, vServerModel[i].dailyCost);
     }
 
     cin >> M;
