@@ -24,6 +24,18 @@ int main()
     for(int i = 0; i < M; i++){
       readVirtualMachineModel();
     }
+
+    //将虚拟机模型按照大小排序
+    sort(vVirtualMachineModel.begin(),vVirtualMachineModel.end(),[&](const VirtualMachineModel &a,const VirtualMachineModel &b){
+        return a.core + a.memory < b.core + b.memory;
+         });
+    //并对应type：下标
+    for(int i=0;i<vVirtualMachineModel.size();i++){
+        VirtualMachineModel &p = vVirtualMachineModel[i];
+        sortedVirtualMachine.push_back(unordered_set<int>{});
+        VirtualMachineModeltoPos[p.type] = i;
+    }
+
     long long vmcoresum = 0, vmmemsum = 0;
     for (int i = 0; i < vVirtualMachineModel.size(); i++) {
       vmcoresum += vVirtualMachineModel[i].core;

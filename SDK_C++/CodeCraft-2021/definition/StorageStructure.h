@@ -4,6 +4,7 @@
 #include <string>
 #include <set>
 #include <unordered_map>
+#include<unordered_set>
 
 #include "ServerModel.h"
 #include "VirtualMachineModel.h"
@@ -19,7 +20,8 @@ unordered_map<string, VirtualMachineModel> mTypeToVirtualMachineModel; // 所有虚
 
 vector<ServerModel> vServerModel;
 vector<VirtualMachineModel> vVirtualMachineModel;
-
+vector<unordered_set<int> > sortedVirtualMachine; //下标对应排序的vVitrualMachineModel,set内包含所有该类型model的虚拟机id;
+unordered_map<string,int > VirtualMachineModeltoPos ; //各个虚拟机模型type对应的排序后的下标
 unordered_map<int, int> mLocalServerIdGlobalServerId; //serverId到输出id的映射
 
 unordered_map<int, pair<int, int>> mVirtualMachineInServer; // 虚拟机编号到服务器编号以及节点的映射
