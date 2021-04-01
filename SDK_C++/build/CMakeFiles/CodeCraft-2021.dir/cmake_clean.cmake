@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
-  "/Users/hollin/Documents/竞赛/huawei/SDK/SDK_C++/bin/CodeCraft-2021"
-  "/Users/hollin/Documents/竞赛/huawei/SDK/SDK_C++/bin/CodeCraft-2021.pdb"
   "CMakeFiles/CodeCraft-2021.dir/CodeCraft-2021.cpp.o"
+  "/home/hui/data/project/huawei-competition/SDK_C++/bin/CodeCraft-2021.pdb"
+  "/home/hui/data/project/huawei-competition/SDK_C++/bin/CodeCraft-2021"
 )
 
 # Per-language clean rules from dependency scanning.

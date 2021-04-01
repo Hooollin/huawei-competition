@@ -32,9 +32,13 @@ vector<Server> vAllServer;                    //所有已经创建的服务器
 unordered_map<int, Server> mServerIdToServer; //服务器编号到服务器的映射
 unordered_map<int, int> mServerIdVectorPos;    //服务器编号到vector下标的映射
 
+
 //输出数据
 vector<string> vMigration;
 vector<pair<int, int>> vDeployment;
 vector<int> vPurchasedServer;
 
 vector<OP> vOperation;
+
+//k天的操作
+vector<vector<OP>> vOperationKdays;

@@ -285,6 +285,70 @@ pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T){
     else return makePurchase2(vmd,today,T);
 }
 
+//最优化性价比购买策略
+pair<int, int> makePurchase3(VirtualMachineModel vmd, int today, int T){
+    int newServerId = getNextServerId();
+    //当前虚拟机需要的core和内存大小
+    int neededCore = vmd.core, neededMem = vmd.memory;
+    if(vmd.single){
+        neededCore *= 2;
+        neededMem *= 2;
+    }
+    //按性价比排序所以服务器(价格比上性能，越小越好)
+    sort(vServerModel.begin(), vServerModel.end(), [&](ServerModel&a, ServerModel&b){
+        double priceServerA = a.getDailyCost() * (T - today) + a.getDeviceCost();
+        double priceServerB = b.getDailyCost() * (T - today) + b.getDeviceCost();
+        double priceWithCapacityA =  priceServerA / a.totalMem + priceServerA / a.totalCore;
+        double priceWithCapacityB =  priceServerB / b.totalMem + priceServerB / b.totalCore;
+        return priceWithCapacityA < priceWithCapacityB;
+    });
+    //计算满足k天情况服务器最少新增最优解
+    int expert_core = 0, expert_mem = 0;
+
+    pair<int, int> expert = getBetterServerResource(vOperationKdays, vServerModel);
+    expert_core = expert.first;
+    expert_mem = expert.second;
+
+    //遍历服务器，选择满足k天情况最优的服务器
+    int k = -1;
+    int distance = 1000000000;
+    for(int i = 0; i < vServerModel.size(); i ++){
+        //寻找最接近expert资源的服务器(大于最好)
+        int new_distance = abs(vServerModel[i].core - expert_core) + abs(vServerModel[i] - expert_mem);
+        if(new_distance < distance){
+            distance = new_distance;
+            k = i;
+        }
+    }
+    #ifdef DEBUG
+    assert(k != -1);
+    #endif
+
+    ServerModel sm = vServerModel[k];
+    Server purchasedServer(sm.type, newServerId, sm.core, sm.memory, sm.deviceCost, sm.dailyCost);
+    vPurchasedServer.push_back(newServerId);
+
+    vAllServer.push_back(purchasedServer);
+    mServerIdVectorPos[newServerId] = vAllServer.size() - 1;
+    mServerIdToServer[newServerId] = purchasedServer;
+
+    if(vmd.single) return make_pair(newServerId,A);
+    else return make_pair(newServerId,BOTH);
+}
+
+//计算满足k天情况下的最优服务器(返回核心和内存)
+pair<int, int> getBetterServerResource(vector<vector<OP>> &vOperationKdays, vector<ServerModel>& vServerModel){
+    //vServerModel 已经按性价比排序
+    int expert_core = 0, expert_mem = 0;
+    for(int i = 0; i < vOperationKdays.size(); i ++){
+        for(int j = 0;j < vOperationKdays[i].size(); j ++){
+            //判断这个操作对于当前情况需不需要购买服务器，如果需要，则将当前操作虚拟机需要资源加进expert
+
+        }
+    }
+    return make_pair(expert_core, expert_mem)
+}
+
 pair<int,int> makePurchase1(VirtualMachineModel vmd, int today, int T){
     int newServerId = getNextServerId();
     //当前虚拟机需要的core和内存大小

@@ -11,4 +11,4 @@
 #define NONE 0
 #define DEBUG
 //#define SEEK_PARAMETER
-//#define CHECKUSAGE
+// #define CHECKUSAGE

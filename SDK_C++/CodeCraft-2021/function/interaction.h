@@ -168,6 +168,8 @@ int getNextGlobalServerId(){
 void initializeOperationVector(){
   vOperation.clear();
   vOperation.resize(0);
+  vOperationKdays.clear();
+  vOperationKdays.resize(0);
   vMigration.clear();
   vMigration.resize(0);
   vDeployment.clear();
