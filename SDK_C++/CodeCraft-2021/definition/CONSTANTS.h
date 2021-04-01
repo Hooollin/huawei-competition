@@ -9,6 +9,6 @@
 #define B 4
 #define BOTH 5
 #define NONE 0
-#define DEBUG
-#define SEEK_PARAMETER
+//#define DEBUG
+//#define SEEK_PARAMETER
 //#define CHECKUSAGE

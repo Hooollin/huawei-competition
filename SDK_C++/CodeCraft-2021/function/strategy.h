@@ -17,18 +17,18 @@
 
 //购买权重（和为1）
 
-double buy_PriceWeight = 0.16;//按价格购买权重
-double buy_BalanceWeight = 0.91;//两个节点使用资源比例平衡参数
-double buy_leftSpaceWeight = 0.49;//剩余空间
-double buy_PriceWithCapacituWeight = 0.29;//性价比
-double buy_SmWeight = 0.036;//相似性购买
+double buy_PriceWeight = 0.5376;//按价格购买权重
+double buy_BalanceWeight = 0.5914;//两个节点使用资源比例平衡参数
+double buy_leftSpaceWeight = 0.2532;//剩余空间
+double buy_PriceWithCapacituWeight = 0.9921;//性价比
+double buy_SmWeight = 0.0752;//相似性购买
 // double DayWeight = 0.8;
 
 //放置权值(和为1)
-double put_SelectWeight = 0.39;//碎片选择权重
-double put_NodeBlanceWeight = 0.86;//负载均衡参数
-double put_SimWeight = 0.7;//相似放置
-double put_BalanceWeight = 0.67;//两个节点使用资源比例平衡参数
+double put_SelectWeight = 0.0713;//碎片选择权重
+double put_NodeBlanceWeight = 0.913;//负载均衡参数
+double put_SimWeight = 0.0596;//相似放置
+double put_BalanceWeight = 0.5347;//两个节点使用资源比例平衡参数
 double put_NearWeight = 0.0;//相近放置
 
 //迁移权值（和为1）
@@ -231,8 +231,8 @@ double selectServerFun(Server &currServer, VirtualMachineModel vmd, int occupyAC
 }
 inline bool serverEmpty(const Server &server){
     return server.nodeA.coreUsed == 0 && server.nodeA.memoryUsed == 0 && server.nodeB.coreUsed == 0 && server.nodeB.memoryUsed == 0;
-
 }
+
 pair<double,int> selectServerCal(Server &currServer, VirtualMachineModel &vmd,int choice){
     double res = 0;
     int choseNode = 0;
