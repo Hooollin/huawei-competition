@@ -294,14 +294,6 @@ pair<int, int> makePurchase3(VirtualMachineModel vmd, int today, int T){
         neededCore *= 2;
         neededMem *= 2;
     }
-    //按性价比排序所以服务器(价格比上性能，越小越好)
-    sort(vServerModel.begin(), vServerModel.end(), [&](ServerModel&a, ServerModel&b){
-        double priceServerA = a.getDailyCost() * (T - today) + a.getDeviceCost();
-        double priceServerB = b.getDailyCost() * (T - today) + b.getDeviceCost();
-        double priceWithCapacityA =  priceServerA / a.totalMem + priceServerA / a.totalCore;
-        double priceWithCapacityB =  priceServerB / b.totalMem + priceServerB / b.totalCore;
-        return priceWithCapacityA < priceWithCapacityB;
-    });
     //计算满足k天情况服务器最少新增最优解
     int expert_core = 0, expert_mem = 0;
 
@@ -337,8 +329,16 @@ pair<int, int> makePurchase3(VirtualMachineModel vmd, int today, int T){
 }
 
 //计算满足k天情况下的最优服务器(返回核心和内存)
-pair<int, int> getBetterServerResource(vector<vector<OP>> &vOperationKdays, vector<ServerModel>& vServerModel){
-    //vServerModel 已经按性价比排序
+pair<int, int> getBetterServerResource(vector<vector<OP>> &vOperationKdays, vector<ServerModel> vServerModel){
+    //vServerModel 按性价比排序
+    //按性价比排序所以服务器(价格比上性能，越小越好)
+    sort(vServerModel.begin(), vServerModel.end(), [&](ServerModel&a, ServerModel&b){
+        double priceServerA = a.getDailyCost() * (T - today) + a.getDeviceCost();
+        double priceServerB = b.getDailyCost() * (T - today) + b.getDeviceCost();
+        double priceWithCapacityA =  priceServerA / a.totalMem + priceServerA / a.totalCore;
+        double priceWithCapacityB =  priceServerB / b.totalMem + priceServerB / b.totalCore;
+        return priceWithCapacityA < priceWithCapacityB;
+    });
     int expert_core = 0, expert_mem = 0;
     for(int i = 0; i < vOperationKdays.size(); i ++){
         for(int j = 0;j < vOperationKdays[i].size(); j ++){
