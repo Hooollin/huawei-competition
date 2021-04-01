@@ -1,3 +1,5 @@
+
+#pragma once
 //操作类型
 #define ADD 1
 #define DEL 2
