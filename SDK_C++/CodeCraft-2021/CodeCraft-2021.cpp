@@ -53,6 +53,9 @@ int main()
           readOperation();
         }
         solve(i, T);
+        if(i == 10){
+            break;
+        }
     }
 #ifdef DEBUG
     statiInformation();
