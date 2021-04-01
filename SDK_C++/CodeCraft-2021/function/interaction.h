@@ -22,7 +22,7 @@ int vmcount = 0;
 int dailycost = 0;
 
 
-// ÓÃÀ´Éú³É·şÎñÆ÷±àºÅ
+// ç”¨æ¥ç”ŸæˆæœåŠ¡å™¨ç¼–å·
 int localServerNum = 0;
 int globalServerNumber = 0;
 
@@ -73,7 +73,7 @@ void readServerModel(){
     getline(cin, line);
     ss << line;
 
-    // ½âÎöÃ¿ĞĞ
+    // è§£ææ¯è¡Œ
     char lp, comma, rp;
     ss >> lp;
     string type;
@@ -91,7 +91,7 @@ void readServerModel(){
     //cout << sm.tostring() << endl;
 #endif
 
-    // ·Ö±ğÌí¼Óµ½mapºÍvector
+    // åˆ†åˆ«æ·»åŠ åˆ°mapå’Œvector
     mTypeToServerModel[sm.type] = sm;
     vServerModel.push_back(sm);
 }
@@ -217,7 +217,7 @@ void doOutput(){
 #endif
     }
 
-    //Êä³ödeployment
+    //è¾“å‡ºdeployment
     for(auto &p : vDeployment){
 #ifndef DEBUG
         cout << makeDeploymentOutput(p.first, p.second) << endl;
@@ -258,7 +258,7 @@ void  statiInformation(){
          << unfilledSize << endl;
 }
 
-//²âÊÔÓÃ£¬ÅĞ¶ÏserverµÄ×ÊÔ´ÊÇ·ñºÏ·¨
+//æµ‹è¯•ç”¨ï¼Œåˆ¤æ–­serverçš„èµ„æºæ˜¯å¦åˆæ³•
 bool checkServer(Server &server){
     if(server.nodeA.coreRem < 0 || server.nodeB.coreRem < 0){
         return false;
@@ -275,7 +275,7 @@ bool checkServer(Server &server){
     return true;
 }
 
-// ¼ì²é·şÎñÆ÷ÊÇ·ñµ½ÁËÊ¹ÓÃ¶È
+// æ£€æŸ¥æœåŠ¡å™¨æ˜¯å¦åˆ°äº†ä½¿ç”¨åº¦
 bool checkUsage(Server &server){
     float minimumUseage = .8;
     int usedCore = server.nodeA.coreUsed + server.nodeB.coreUsed;

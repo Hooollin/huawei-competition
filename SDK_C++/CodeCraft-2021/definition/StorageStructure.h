@@ -15,24 +15,24 @@
 using namespace std;
 
 
-unordered_map<string, ServerModel> mTypeToServerModel; // ËùÓĞ·şÎñÆ÷ĞÍºÅ£» key: type -> value: ·şÎñÆ÷ĞÍºÅ
-unordered_map<string, VirtualMachineModel> mTypeToVirtualMachineModel; // ËùÓĞĞéÄâ»úĞÍºÅ£» key: type -> value:
+unordered_map<string, ServerModel> mTypeToServerModel; // æ‰€æœ‰æœåŠ¡å™¨å‹å·ï¼› key: type -> value: æœåŠ¡å™¨å‹å·
+unordered_map<string, VirtualMachineModel> mTypeToVirtualMachineModel; // æ‰€æœ‰è™šæ‹Ÿæœºå‹å·ï¼› key: type -> value:
 
 vector<ServerModel> vServerModel;
 vector<VirtualMachineModel> vVirtualMachineModel;
-vector<unordered_set<int> > sortedVirtualMachine; //ÏÂ±ê¶ÔÓ¦ÅÅĞòµÄvVitrualMachineModel,setÄÚ°üº¬ËùÓĞ¸ÃÀàĞÍmodelµÄĞéÄâ»úid;
-unordered_map<string,int > VirtualMachineModeltoPos ; //¸÷¸öĞéÄâ»úÄ£ĞÍtype¶ÔÓ¦µÄÅÅĞòºóµÄÏÂ±ê
-unordered_map<int, int> mLocalServerIdGlobalServerId; //serverIdµ½Êä³öidµÄÓ³Éä
+vector<unordered_set<int> > sortedVirtualMachine; //ä¸‹æ ‡å¯¹åº”æ’åºçš„vVitrualMachineModel,setå†…åŒ…å«æ‰€æœ‰è¯¥ç±»å‹modelçš„è™šæ‹Ÿæœºid;
+unordered_map<string,int > VirtualMachineModeltoPos ; //å„ä¸ªè™šæ‹Ÿæœºæ¨¡å‹typeå¯¹åº”çš„æ’åºåçš„ä¸‹æ ‡
+unordered_map<int, int> mLocalServerIdGlobalServerId; //serverIdåˆ°è¾“å‡ºidçš„æ˜ å°„
 
-unordered_map<int, pair<int, int>> mVirtualMachineInServer; // ĞéÄâ»ú±àºÅµ½·şÎñÆ÷±àºÅÒÔ¼°½ÚµãµÄÓ³Éä
-unordered_map<int, VirtualMachine> mVmidToVirtualMachine; //ĞéÄâ»ú±àºÅµ½ĞéÄâ»úµ½Ó³Éä
+unordered_map<int, pair<int, int>> mVirtualMachineInServer; // è™šæ‹Ÿæœºç¼–å·åˆ°æœåŠ¡å™¨ç¼–å·ä»¥åŠèŠ‚ç‚¹çš„æ˜ å°„
+unordered_map<int, VirtualMachine> mVmidToVirtualMachine; //è™šæ‹Ÿæœºç¼–å·åˆ°è™šæ‹Ÿæœºåˆ°æ˜ å°„
 unordered_map<int, set<pair<int, int>>> mServerHasVirtualMachine;
 
-vector<Server> vAllServer;                    //ËùÓĞÒÑ¾­´´½¨µÄ·şÎñÆ÷
-unordered_map<int, Server> mServerIdToServer; //·şÎñÆ÷±àºÅµ½·şÎñÆ÷µÄÓ³Éä
-unordered_map<int, int> mServerIdVectorPos;    //·şÎñÆ÷±àºÅµ½vectorÏÂ±êµÄÓ³Éä
+vector<Server> vAllServer;                    //æ‰€æœ‰å·²ç»åˆ›å»ºçš„æœåŠ¡å™¨
+unordered_map<int, Server> mServerIdToServer; //æœåŠ¡å™¨ç¼–å·åˆ°æœåŠ¡å™¨çš„æ˜ å°„
+unordered_map<int, int> mServerIdVectorPos;    //æœåŠ¡å™¨ç¼–å·åˆ°vectorä¸‹æ ‡çš„æ˜ å°„
 
-//Êä³öÊı¾İ
+//è¾“å‡ºæ•°æ®
 vector<string> vMigration;
 vector<pair<int, int>> vDeployment;
 vector<int> vPurchasedServer;
