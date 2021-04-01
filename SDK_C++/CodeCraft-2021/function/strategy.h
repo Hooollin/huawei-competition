@@ -313,7 +313,7 @@ pair<int, int> makePurchase3(VirtualMachineModel vmd, int today, int T){
     int k = -1;
     int distance = 1000000000;
     for(int i = 0; i < vServerModel.size(); i ++){
-        //寻找最接近expert资源的服务器(大于最好)
+        //寻找最接近expert资源的服务器(大于最好, 但是大于尚未写)
         int new_distance = abs(vServerModel[i].core - expert_core) + abs(vServerModel[i] - expert_mem);
         if(new_distance < distance){
             distance = new_distance;
