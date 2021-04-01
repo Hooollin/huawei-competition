@@ -1,11 +1,8 @@
 #pragma once
 
-<<<<<<< HEAD
 #define DEBUG
 //#define CHECKUSAGE
 
-=======
->>>>>>> 668095262391c7038268353c54e82a3707fee0cc
 #include <iostream>
 #include <vector>
 #include <map>
@@ -17,8 +14,6 @@
 #include <queue>
 #include <set>
 #include <unordered_map>
-
-#include "../definition/CONSTANTS.h"
 #include "../definition/StorageStructure.h"
 
 int addcount = 0;
@@ -27,7 +22,7 @@ int vmcount = 0;
 int dailycost = 0;
 
 
-// ç”¨æ¥ç”ŸæˆæœåŠ¡å™¨ç¼–å·
+// ÓÃÀ´Éú³É·şÎñÆ÷±àºÅ
 int localServerNum = 0;
 int globalServerNumber = 0;
 
@@ -78,7 +73,7 @@ void readServerModel(){
     getline(cin, line);
     ss << line;
 
-    // è§£ææ¯è¡Œ
+    // ½âÎöÃ¿ĞĞ
     char lp, comma, rp;
     ss >> lp;
     string type;
@@ -96,7 +91,7 @@ void readServerModel(){
     //cout << sm.tostring() << endl;
 #endif
 
-    // åˆ†åˆ«æ·»åŠ åˆ°mapå’Œvector
+    // ·Ö±ğÌí¼Óµ½mapºÍvector
     mTypeToServerModel[sm.type] = sm;
     vServerModel.push_back(sm);
 }
@@ -201,37 +196,28 @@ void doOutput(){
         }
         cnt[type].push_back(serverId);
     }
-#ifndef SEEK_PARAMETER
     cout << "(purchase, " << to_string(cnt.size()) << ")" << endl;
-#endif
     for(auto &p : cnt){
         for(int serverid : p.second){
             mLocalServerIdGlobalServerId[serverid] = getNextGlobalServerId();
         }
         string curr = "(" + p.first + ", " + to_string(p.second.size()) + ")";
 #ifndef DEBUG
-#ifndef SEEK_PARAMETER
         cout << curr << endl;
 #endif
-#endif
     }
-#ifndef SEEK_PARAMETER
     //migration
     cout << "(" << "migration, " << vMigration.size() << ")" << endl;
-#endif
     for(auto &s : vMigration){
 #ifdef DEBUG
         vmcount ++;
 #endif // DEBUG
-
 #ifndef DEBUG
-#ifndef SEEK_PARAMETER
         cout << s << endl;
-#endif
 #endif
     }
 
-    //è¾“å‡ºdeployment
+    //Êä³ödeployment
     for(auto &p : vDeployment){
 #ifndef DEBUG
         cout << makeDeploymentOutput(p.first, p.second) << endl;
@@ -250,14 +236,13 @@ string makeMigrateOutput(int vmid,int serverId,int node){
 }
 
 void  statiInformation(){
-    int totalPrice = dailycost;
-#ifndef SEEK_PARAMETER
     cout << "N: " << vServerModel.size() << endl;
     cout << "M: " << vVirtualMachineModel.size() << endl;
     cout << "add count: " << addcount << endl;
     cout << "del count: " << delcount << endl;
     cout << "vm count: " << vmcount << endl;
     int unfilledSize = 0;
+    int totalPrice = dailycost;
     for (auto &s : vAllServer) {
       totalPrice += s.getDeviceCost();
       if (!checkServer(s)) {
@@ -269,18 +254,11 @@ void  statiInformation(){
         unfilledSize += 1;
       }
     }
-    cout << "total price: " << totalPrice << " " << vAllServer.size() << " " << unfilledSize << endl;
-#endif
-
-#ifdef SEEK_PARAMETER
-     for (auto &s : vAllServer) {
-         totalPrice += s.getDeviceCost();
-     }
-    cout << totalPrice;
-#endif
+    cout << "total price: " << totalPrice << " " << vAllServer.size() << " "
+         << unfilledSize << endl;
 }
 
-//æµ‹è¯•ç”¨ï¼Œåˆ¤æ–­serverçš„èµ„æºæ˜¯å¦åˆæ³•
+//²âÊÔÓÃ£¬ÅĞ¶ÏserverµÄ×ÊÔ´ÊÇ·ñºÏ·¨
 bool checkServer(Server &server){
     if(server.nodeA.coreRem < 0 || server.nodeB.coreRem < 0){
         return false;
@@ -297,7 +275,7 @@ bool checkServer(Server &server){
     return true;
 }
 
-// æ£€æŸ¥æœåŠ¡å™¨æ˜¯å¦åˆ°äº†ä½¿ç”¨åº¦
+// ¼ì²é·şÎñÆ÷ÊÇ·ñµ½ÁËÊ¹ÓÃ¶È
 bool checkUsage(Server &server){
     float minimumUseage = .8;
     int usedCore = server.nodeA.coreUsed + server.nodeB.coreUsed;

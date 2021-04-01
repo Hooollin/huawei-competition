@@ -12,39 +12,28 @@
 #include <set>
 #include <unordered_map>
 
-
 #include "./interaction.h"
 
-<<<<<<< HEAD
 //¹ºÂòÈ¨ÖØ£¨ºÍÎª1£©
 double buy_PriceWeight = 0.15;//°´¼Û¸ñ¹ºÂòÈ¨ÖØ
 double buy_BalanceWeight = 0.3;//Á½¸ö½ÚµãÊ¹ÓÃ×ÊÔ´±ÈÀıÆ½ºâ²ÎÊı
 double buy_leftSpaceWeight = 0.0;//Ê£Óà¿Õ¼ä
 double buy_PriceWithCapacituWeight = 0.45;//ĞÔ¼Û±È
 double buy_SmWeight = 0.1;//ÏàËÆĞÔ¹ºÂò
-=======
-//è´­ä¹°æƒé‡ï¼ˆå’Œä¸º1ï¼‰
-
-double buy_PriceWeight = 0.16;//æŒ‰ä»·æ ¼è´­ä¹°æƒé‡
-double buy_BalanceWeight = 0.91;//ä¸¤ä¸ªèŠ‚ç‚¹ä½¿ç”¨èµ„æºæ¯”ä¾‹å¹³è¡¡å‚æ•°
-double buy_leftSpaceWeight = 0.49;//å‰©ä½™ç©ºé—´
-double buy_PriceWithCapacituWeight = 0.29;//æ€§ä»·æ¯”
-double buy_SmWeight = 0.036;//ç›¸ä¼¼æ€§è´­ä¹°
->>>>>>> 668095262391c7038268353c54e82a3707fee0cc
 // double DayWeight = 0.8;
 
-//æ”¾ç½®æƒå€¼(å’Œä¸º1)
-double put_SelectWeight = 0.39;//ç¢ç‰‡é€‰æ‹©æƒé‡
-double put_NodeBlanceWeight = 0.86;//è´Ÿè½½å‡è¡¡å‚æ•°
-double put_SimWeight = 0.7;//ç›¸ä¼¼æ”¾ç½®
-double put_BalanceWeight = 0.67;//ä¸¤ä¸ªèŠ‚ç‚¹ä½¿ç”¨èµ„æºæ¯”ä¾‹å¹³è¡¡å‚æ•°
-double put_NearWeight = 0.0;//ç›¸è¿‘æ”¾ç½®
+//·ÅÖÃÈ¨Öµ(ºÍÎª1)
+double put_SelectWeight = 0.0;//ËéÆ¬Ñ¡ÔñÈ¨ÖØ
+double put_NodeBlanceWeight = 0.5;//¸ºÔØ¾ùºâ²ÎÊı
+double put_SimWeight = 0.;//ÏàËÆ·ÅÖÃ
+double put_BalanceWeight = 0.5;//Á½¸ö½ÚµãÊ¹ÓÃ×ÊÔ´±ÈÀıÆ½ºâ²ÎÊı
+double put_NearWeight = 0.0;//Ïà½ü·ÅÖÃ
 
-//è¿ç§»æƒå€¼ï¼ˆå’Œä¸º1ï¼‰
-double migrate_chipWeight = 1.0;//ç¢ç‰‡é€‰æ‹©æƒé‡
-double migrate_balanceWeight = 0;//å¹³è¡¡æƒé‡
+//Ç¨ÒÆÈ¨Öµ£¨ºÍÎª1£©
+double migrate_chipWeight = 1.0;//ËéÆ¬Ñ¡ÔñÈ¨ÖØ
+double migrate_balanceWeight = 0;//Æ½ºâÈ¨ÖØ
 
-//ç­–ç•¥æ”¹å˜çš„å¤©æ•°æƒå€¼
+//²ßÂÔ¸Ä±äµÄÌìÊıÈ¨Öµ
 double change_buyWeight = 1.0;
 
 // work
@@ -97,7 +86,7 @@ bool compareNode(Node nodeA, Node nodeB, VirtualMachine vm);
 
 //**********************************DECLEAR END*****************************
 
-// purchaseæ—¶è·å–æœåŠ¡å™¨ç¼–å·
+// purchaseÊ±»ñÈ¡·şÎñÆ÷±àºÅ
 int getNextServerId(){
     return localServerNum++;
 }
@@ -144,16 +133,16 @@ double similarity(VirtualMachineModel &vmd, ServerModel &server){
     return abs((double)vmd.core / vmd.memory - (double)server.core / server.memory);
 }
 
-// åˆ¤æ–­è™šæ‹Ÿæœºæ˜¯å¦å¯ä»¥æ”¾åœ¨æœåŠ¡å™¨ä¸­
+// ÅĞ¶ÏĞéÄâ»úÊÇ·ñ¿ÉÒÔ·ÅÔÚ·şÎñÆ÷ÖĞ
 int canPut(Server server, VirtualMachineModel vmd){
     int neededCore = vmd.core, neededMem = vmd.memory;
     if(vmd.single){
         int choice = NONE;
-        // å¯ä»¥æ”¾åœ¨AèŠ‚ç‚¹
+        // ¿ÉÒÔ·ÅÔÚA½Úµã
         if(server.nodeA.coreRem >= neededCore && server.nodeA.memoryRem >= neededMem){
             choice = A;
         }
-        // å¯ä»¥æ”¾åœ¨BèŠ‚ç‚¹
+        // ¿ÉÒÔ·ÅÔÚB½Úµã
         if(server.nodeB.coreRem >= neededCore && server.nodeB.memoryRem >= neededMem){
             choice = (choice == NONE) ? B : BOTH;
         }
@@ -180,11 +169,11 @@ int canPut(Server server, VirtualMachine vm){
     int neededCore = vm.getCore(), neededMem = vm.getMemory();
     if(vm.getSingle()){
         int choice = NONE;
-        // å¯ä»¥æ”¾åœ¨AèŠ‚ç‚¹
+        // ¿ÉÒÔ·ÅÔÚA½Úµã
         if(server.nodeA.coreRem >= neededCore && server.nodeA.memoryRem >= neededMem){
             choice = A;
         }
-        // å¯ä»¥æ”¾åœ¨BèŠ‚ç‚¹
+        // ¿ÉÒÔ·ÅÔÚB½Úµã
         if(server.nodeB.coreRem >= neededCore && server.nodeB.memoryRem >= neededMem){
             choice = (choice == NONE) ? B : BOTH;
         }
@@ -207,13 +196,13 @@ int canPut(Server server, VirtualMachine vm){
     }
 }
 
-//è®¡ç®—é€‰æ‹©å€¼
+//¼ÆËãÑ¡ÔñÖµ
 double selectServerFun(Server &currServer, VirtualMachineModel vmd, int occupyACore,int occupyAMem,int occupyBCore,int occupyBMem){
     int leftACore = currServer.nodeA.coreRem - occupyACore, leftBCore = currServer.nodeB.coreRem - occupyBCore;
     int leftAMem = currServer.nodeA.memoryRem - occupyAMem, leftBMem = currServer.nodeB.memoryRem - occupyBMem;
     int totalCore = currServer.getCore() >> 1;
     int totalMem = currServer.getMemory() >> 1;
-    //è®¡ç®—ç¢ç‰‡å‚æ•°
+    //¼ÆËãËéÆ¬²ÎÊı
     double chipF;
     double total = currServer.getCore() + currServer.getMemory();
     double Sim = 0.0, Near = 0.0;
@@ -232,11 +221,11 @@ double selectServerFun(Server &currServer, VirtualMachineModel vmd, int occupyAC
         Sim = 1.0 - abs(1.0 * occupyBCore / occupyBMem - 1.0 * currServer.getCore() / currServer.getMemory()) / (MAX_SIMI - MIN_SIMI);
     }
 
-    //è®¡ç®—å¹³è¡¡å‚æ•°
+    //¼ÆËãÆ½ºâ²ÎÊı
     double balanceF = (abs(1 - abs(1.0 * leftACore / totalCore - 1.0 * leftAMem / totalMem)) + abs(1 - abs(1.0 * leftBCore / totalCore - 1.0 * leftBMem / totalMem))) / 2;
     double balanceNode = 1 - ((double)abs(leftACore - leftBCore) / totalCore + (double)abs(leftAMem - leftBMem) / totalMem) / total;
 
-    //è¿”å›åŠ æƒå€¼
+    //·µ»Ø¼ÓÈ¨Öµ
     return put_SelectWeight * chipF + put_SimWeight * Sim + put_NearWeight * Near + balanceF * put_BalanceWeight + put_NodeBlanceWeight * balanceNode;
 }
 inline bool serverEmpty(const Server &server){
@@ -267,8 +256,8 @@ pair<double,int> selectServerCal(Server &currServer, VirtualMachineModel &vmd,in
 }
 
 pair<int,int> selectServer(VirtualMachineModel vmd){
-    double maxn = 0; //å‡½æ•°è·å¾—çš„æœ€å¤§å€¼
-    pair<double,int> res;//è¿”å›å€¼
+    double maxn = 0; //º¯Êı»ñµÃµÄ×î´óÖµ
+    pair<double,int> res;//·µ»ØÖµ
     int finalChoice;
     int targetServerIdx = -1;
     for (int i = 0; i < vAllServer.size(); i++) {
@@ -296,7 +285,7 @@ pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T){
 
 pair<int,int> makePurchase1(VirtualMachineModel vmd, int today, int T){
     int newServerId = getNextServerId();
-    //å½“å‰è™šæ‹Ÿæœºéœ€è¦çš„coreå’Œå†…å­˜å¤§å°
+    //µ±Ç°ĞéÄâ»úĞèÒªµÄcoreºÍÄÚ´æ´óĞ¡
     int neededCore = vmd.core, neededMem = vmd.memory;
     if(vmd.single){
         neededCore *= 2;
@@ -388,7 +377,7 @@ pair<int,int> makePurchase1(VirtualMachineModel vmd, int today, int T){
 
 pair<int,int> makePurchase2(VirtualMachineModel vmd, int today, int T){
     int newServerId = getNextServerId();
-    //å½“å‰è™šæ‹Ÿæœºéœ€è¦çš„coreå’Œå†…å­˜å¤§å°
+    //µ±Ç°ĞéÄâ»úĞèÒªµÄcoreºÍÄÚ´æ´óĞ¡
     int neededCore = vmd.core, neededMem = vmd.memory;
     if(vmd.single){
         neededCore *= 2;
@@ -424,7 +413,7 @@ pair<int,int> makePurchase2(VirtualMachineModel vmd, int today, int T){
 }
 
 void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, pair<int,int> serverAndNode){
-    //æ‰¾åˆ°å¯¹åº”çš„server
+    //ÕÒµ½¶ÔÓ¦µÄserver
     int serverId = serverAndNode.first, node = serverAndNode.second;
     Server server = mServerIdToServer[serverId];
 #ifdef DEBUG
@@ -439,20 +428,16 @@ void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, pair<int,int> 
     assert(vmid != 0);
 #endif
 
-    //æ›´æ–°æ•°æ®ç»“æ„
+    //¸üĞÂÊı¾İ½á¹¹
     mVirtualMachineInServer[vmid] = {serverId, node};
     mServerHasVirtualMachine[serverId].insert(
         make_pair(vmd.core + vmd.memory, vmid));
     mServerIdToServer[serverId] = server;
     vAllServer[mServerIdVectorPos[serverId]] = server;
 
-<<<<<<< HEAD
     sortedVirtualMachine[VirtualMachineModeltoPos[vmd.type]].insert(vmid);
 
     //Êä³ö
-=======
-    //è¾“å‡º
->>>>>>> 668095262391c7038268353c54e82a3707fee0cc
     vDeployment.push_back({serverId, node});
 }
 
@@ -488,11 +473,11 @@ void migrateVirtualMachineToServer(int vmid, pair<int, int> serverAndNode){
 void allocateServer(OP addop, int today, int T){
     int vmid = addop.id;
     VM_AMOUNT += 1;
-    // éœ€è¦æ–°å¢è™šæ‹Ÿæœºçš„å‹å·
+    // ĞèÒªĞÂÔöĞéÄâ»úµÄĞÍºÅ
     VirtualMachineModel vmd = mTypeToVirtualMachineModel[addop.machineType];
-    //æ–°å¢çš„è™šæ‹Ÿæœºå®ä¾‹
+    //ĞÂÔöµÄĞéÄâ»úÊµÀı
     pair<int,int> serverAndNode = selectServer(vmd);
-    if(serverAndNode.first == -1){       // æ²¡æœ‰åˆé€‚çš„æœåŠ¡å™¨ï¼Œéœ€è¦æ–°è´­ä¹°æœåŠ¡å™¨
+    if(serverAndNode.first == -1){       // Ã»ÓĞºÏÊÊµÄ·şÎñÆ÷£¬ĞèÒªĞÂ¹ºÂò·şÎñÆ÷
         serverAndNode = makePurchase(vmd, today, T);
     }
 
@@ -516,12 +501,8 @@ void releaseRes(OP delop){
     vAllServer[mServerIdVectorPos[serverId]] = server;
     mServerIdToServer[serverId] = server;
 
-<<<<<<< HEAD
     //¸üĞÂÊı¾İÊı¾İ½á¹¹
     sortedVirtualMachine[VirtualMachineModeltoPos[mVmidToVirtualMachine[vmid].getType()]].erase(vmid);
-=======
-    //æ›´æ–°æ•°æ®æ•°æ®ç»“æ„
->>>>>>> 668095262391c7038268353c54e82a3707fee0cc
     mVmidToVirtualMachine.erase(vmid);
     mVirtualMachineInServer.erase(vmid);
     mServerHasVirtualMachine[serverId].erase(
@@ -529,32 +510,31 @@ void releaseRes(OP delop){
 }
 
 bool compareNode(Node nodeA, Node nodeB, VirtualMachine vm){
-    //åªèƒ½æ”¾åœ¨Aã€Bä¸­çš„ä¸€ä¸ª
-    // AèŠ‚ç‚¹å‰©ä¸‹çš„èµ„æºä¸å¤Ÿ
+    //Ö»ÄÜ·ÅÔÚA¡¢BÖĞµÄÒ»¸ö
+    // A½ÚµãÊ£ÏÂµÄ×ÊÔ´²»¹»
     if(vm.getCore() > nodeA.coreRem || vm.getMemory() > nodeA.memoryRem){
         return false;
     }
-    // BèŠ‚ç‚¹å‰©ä¸‹çš„èµ„æºä¸å¤Ÿ
+    // B½ÚµãÊ£ÏÂµÄ×ÊÔ´²»¹»
     if(vm.getCore() > nodeB.coreRem || vm.getMemory() > nodeB.memoryRem){
         return true;
     }
 
-    //A, BèŠ‚ç‚¹éƒ½å¯ä»¥æ”¾æ—¶
-    //å¦‚æœAå¯ä»¥æ”¾å¹¶ä¸”æ”¾åcoreå’Œmeméƒ½æ¯”Bå¤š
+    //A, B½Úµã¶¼¿ÉÒÔ·ÅÊ±
+    //Èç¹ûA¿ÉÒÔ·Å²¢ÇÒ·ÅºócoreºÍmem¶¼±ÈB¶à
     if(nodeA.coreRem - vm.getCore() >= nodeB.coreRem && nodeA.memoryRem - vm.getMemory() >= nodeB.memoryRem){
         return true;
     }
-    //å¦‚æœBå¯ä»¥æ”¾å¹¶ä¸”æ”¾åcoreå’Œmeméƒ½æ¯”Aå¤š
+    //Èç¹ûB¿ÉÒÔ·Å²¢ÇÒ·ÅºócoreºÍmem¶¼±ÈA¶à
     if(nodeB.coreRem - vm.getCore() >= nodeA.coreRem && nodeB.memoryRem - vm.getMemory() >= nodeA.memoryRem){
         return false;
     }
-    // å…¶ä»–çš„æƒ…å†µå–å†³äºvmdæ‰€éœ€çš„coreå’Œmemory
+    // ÆäËûµÄÇé¿öÈ¡¾öÓÚvmdËùĞèµÄcoreºÍmemory
     if(vm.getCore() > vm.getMemory()){
         return nodeA.coreRem > nodeB.coreRem;
     }
     return nodeA.memoryRem > nodeB.memoryRem;
 }
-<<<<<<< HEAD
 void small_virtual_machine_migrate(int today,int T){
 // ÔÚÕâÒ»ÂÖ×Ü¹²¿ÉÒÔÇ¨ÒÆµÄ´ÎÊı
 #ifdef DEBUG
@@ -640,10 +620,6 @@ void small_virtual_machine_migrate(int today,int T){
 
 void optimized_migrate(int today,int T){
 // ÔÚÕâÒ»ÂÖ×Ü¹²¿ÉÒÔÇ¨ÒÆµÄ´ÎÊı
-=======
-void optimized_migrate(){
-// åœ¨è¿™ä¸€è½®æ€»å…±å¯ä»¥è¿ç§»çš„æ¬¡æ•°
->>>>>>> 668095262391c7038268353c54e82a3707fee0cc
 #ifdef DEBUG
   assert(mVmidToVirtualMachine.size() == VM_AMOUNT);
 #endif
@@ -651,9 +627,9 @@ void optimized_migrate(){
     //int totalOperation = 3 * mVmidVirtualMachine.size() / 1000;
     // int totalOperation = 2 * mVmidVirtualMachine.size() / 1000;
 
-    // å­˜å‚¨æ‰€æœ‰serverè®¡ç®—ç”Ÿæˆçš„å‡½æ•°å€¼
+    // ´æ´¢ËùÓĞserver¼ÆËãÉú³ÉµÄº¯ÊıÖµ
     vector<double> choseFs;
-    // vServersçš„ä¸‹æ ‡ï¼Œç”¨äºæ’åº
+    // vServersµÄÏÂ±ê£¬ÓÃÓÚÅÅĞò
     vector<int> serverIdxs;
     int idx = 0;
     for (auto &server : vAllServer) {
@@ -670,23 +646,19 @@ void optimized_migrate(){
       choseFs.push_back(choseF);
       serverIdxs.push_back(idx++);
     }
-<<<<<<< HEAD
     // Í¨¹ıchoseFÅÅĞò£¬½«ÅÅĞòºóÏÂ±êĞ¡µÄ·şÎñÆ÷ÖĞĞéÄâ»úÍùÏÂ±ê´óµÄ·şÎñÆ÷ÖĞ·Å
-=======
-    // é€šè¿‡chipFæ’åºï¼Œå°†æ’åºåä¸‹æ ‡å°çš„æœåŠ¡å™¨ä¸­è™šæ‹Ÿæœºå¾€ä¸‹æ ‡å¤§çš„æœåŠ¡å™¨ä¸­æ”¾
->>>>>>> 668095262391c7038268353c54e82a3707fee0cc
     sort(serverIdxs.begin(), serverIdxs.end(), [&](int a, int b){
             return choseFs[a] < choseFs[b];
             });
     sort(choseFs.begin(),choseFs.end());
     int end = serverIdxs.size() - 1;
     for(int i = 0; i < end && totalOperation > 0; i++){
-        // fromServer: å½“å‰éœ€è¦ç§»é™¤è™šæ‹Ÿæœºçš„æœåŠ¡å™¨
+        // fromServer: µ±Ç°ĞèÒªÒÆ³ıĞéÄâ»úµÄ·şÎñÆ÷
         int fromServerIdx = serverIdxs[i];
-        // éœ€è¦ç§»é™¤è™šæ‹Ÿæœºçš„æœåŠ¡å™¨åœ¨vServersä¸­çš„ä¸‹æ ‡
+        // ĞèÒªÒÆ³ıĞéÄâ»úµÄ·şÎñÆ÷ÔÚvServersÖĞµÄÏÂ±ê
         int fromServerId = vAllServer[fromServerIdx].id;
 
-        // å­˜å‚¨å¾ªç¯ä¸­è¢«ç§»åŠ¨åˆ°äº†æ–°çš„æœåŠ¡å™¨çš„è™šæ‹Ÿæœºçš„vmid
+        // ´æ´¢Ñ­»·ÖĞ±»ÒÆ¶¯µ½ÁËĞÂµÄ·şÎñÆ÷µÄĞéÄâ»úµÄvmid
         vector<pair<int, int>> modified;
 
         int last = end;
@@ -702,14 +674,14 @@ void optimized_migrate(){
           assert(mVmidToVirtualMachine.find(vmid) !=
                  mVmidToVirtualMachine.end());
 #endif
-             //ä»ç¢ç‰‡å°çš„æœåŠ¡å™¨å¾€ä¸‹æ‰¾ï¼Œç›´åˆ°ç¬¬ä¸€ä¸ªå¯ä»¥æ”¾ä¸‹è¿™ä¸ªè™šæ‹Ÿæœºçš„æœåŠ¡å™¨
+             //´ÓËéÆ¬Ğ¡µÄ·şÎñÆ÷ÍùÏÂÕÒ£¬Ö±µ½µÚÒ»¸ö¿ÉÒÔ·ÅÏÂÕâ¸öĞéÄâ»úµÄ·şÎñÆ÷
             while(last > i && totalOperation > 0){
-                // toServerï¼šè¢«è¿ç§»è™šæ‹Ÿæœºçš„å»å‘
+                // toServer£º±»Ç¨ÒÆĞéÄâ»úµÄÈ¥Ïò
                 int toServerIdx = serverIdxs[last];
-                // toServeråœ¨vServersä¸­çš„ä¸‹æ ‡
+                // toServerÔÚvServersÖĞµÄÏÂ±ê
                 int toServerId = vAllServer[toServerIdx].id;
 
-                // choiceå¯ä»¥æ”¾åœ¨å“ªä¸ªç»“ç‚¹
+                // choice¿ÉÒÔ·ÅÔÚÄÄ¸ö½áµã
                 int choice = canPut(vAllServer[toServerId], vm);
                 if(choice > 0 && !serverEmpty(vAllServer[toServerId])){
                     if(vm.getSingle() && choice == BOTH){
@@ -720,11 +692,11 @@ void optimized_migrate(){
                         }
                     }
                     vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[toServerId],choice));
-                    // è¿ç§»åˆ°æ–°çš„æœåŠ¡å™¨ä¸Š
+                    // Ç¨ÒÆµ½ĞÂµÄ·şÎñÆ÷ÉÏ
                     migrateVirtualMachineToServer(vmid, {toServerId, choice});
-                    // åœ¨for loopä¸­ä¿®æ”¹é›†åˆä¸­çš„å…ƒç´ ä¼šå¯¼è‡´bug
+                    // ÔÚfor loopÖĞĞŞ¸Ä¼¯ºÏÖĞµÄÔªËØ»áµ¼ÖÂbug
                     modified.push_back({vm.getCore() + vm.getMemory(), vmid});
-                    // å¯è¿ç§»æ¬¡æ•°å‡1
+                    // ¿ÉÇ¨ÒÆ´ÎÊı¼õ1
                     totalOperation -= 1;
                     break;
                 }else{
@@ -732,7 +704,7 @@ void optimized_migrate(){
                 }
             }
         }
-        // æ›´æ–°æ•°æ®ç»“æ„
+        // ¸üĞÂÊı¾İ½á¹¹
         for(auto &p : modified){
           mServerHasVirtualMachine[fromServerId].erase(p);
         }
@@ -741,19 +713,12 @@ void optimized_migrate(){
 }
 
 void solve(int today, int T){
-#ifdef DEBUG 
-#ifndef SEEK_PARAMETER
+#ifdef DEBUG
   cout << today << " " << vOperation.size() << endl;
 #endif
-<<<<<<< HEAD
     // Ë³Ğò±éÀúÃ¿´Î²Ù×÷
     //optimized_migrate(today,T);
     small_virtual_machine_migrate(today,T);
-=======
-#endif
-    // é¡ºåºéå†æ¯æ¬¡æ“ä½œ
-    optimized_migrate();
->>>>>>> 668095262391c7038268353c54e82a3707fee0cc
     //migrate();
     for (auto &op : vOperation) {
       switch (op.opType) {
