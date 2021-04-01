@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/Users/hollin/Downloads/Chrome下载/SDK/SDK_C++/bin/CodeCraft-2021"
-  "/Users/hollin/Downloads/Chrome下载/SDK/SDK_C++/bin/CodeCraft-2021.pdb"
+  "/Users/hollin/Documents/竞赛/huawei/SDK/SDK_C++/bin/CodeCraft-2021"
+  "/Users/hollin/Documents/竞赛/huawei/SDK/SDK_C++/bin/CodeCraft-2021.pdb"
   "CMakeFiles/CodeCraft-2021.dir/CodeCraft-2021.cpp.o"
 )
 
