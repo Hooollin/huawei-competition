@@ -20,6 +20,7 @@ using namespace std;
 #ifdef DEBUG
 int addcount = 0;
 int delcount = 0;
+long long totalCost = 0;
 #endif
 
 // 用来生成服务器编号
@@ -38,18 +39,18 @@ double MAX_SIMI = -1, MIN_SIMI = 0x3f3f3f3f;
 int MAXSOURCE = 0;
 
 //购买权重（和为1）
-double buy_PriceWeight = 0.4;//按价格购买权重
-double buy_BalanceWeight = 0.3;//两个节点使用资源比例平衡参数
-double buy_leftSpaceWeight = 0.0;//剩余空间
-double buy_PriceWithCapacituWeight = 0.3;//性价比
-double buy_SmWeight = 0.1;//相似性购买
+double buy_PriceWeight = 0.25;//按价格购买权重
+double buy_BalanceWeight = 0.4;//两个节点使用资源比例平衡参数
+double buy_leftSpaceWeight = 0.05;//剩余空间
+double buy_PriceWithCapacityWeight = 0.6; //性价比
+double buy_SmWeight = 0.05;//相似性购买
 // double DayWeight = 0.8;
 
 //放置权值(和为1)
 double put_SelectWeight = 0.0;//碎片选择权重
-double put_NodeBlanceWeight = 0.4;//负载均衡参数
-double put_SimWeight = 0.;//相似放置
-double put_BalanceWeight = 0.4;//两个节点使用资源比例平衡参数
+double put_NodeBlanceWeight = 0.5;//负载均衡参数
+double put_SimWeight = 0.0;//相似放置
+double put_BalanceWeight = 0.3;//两个节点使用资源比例平衡参数
 double put_NearWeight = 0.0;//相近放置
 
 
@@ -72,6 +73,8 @@ void optimized_migrate();
 
 // purchase
 pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T);
+
+void updateFactors(int today, int T);
 
 
 // output
@@ -125,6 +128,8 @@ bool compareNode(Node nodeA, Node nodeB, VirtualMachine vm);
 bool checkServer(Server &server);
 
 bool checkUsage(Server &server);
+
+bool isOccupied(Server &server);
 
 //***************************END FUNCTION DEFINITION**********************************
 
@@ -526,9 +531,9 @@ pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T){
         dayPrice = p.dailyCost * (T - today);
         totalCore = p.core;
         totalMem = p.memory;
+
         PriceF[i] = devicePrice + dayPrice;
-        PriceC[i] = 1.0 * (devicePrice + dayPrice) / totalMem +
-                    1.0 * (devicePrice + dayPrice) / totalCore;
+        PriceC[i] = 1.0 * (devicePrice + dayPrice) / totalMem + 1.0 * (devicePrice + dayPrice) / totalCore;
         Near[i]   = abs(1. * totalCore - neededCore) + abs(1. * totalMem - neededMem);
         Sm[i]     = abs((1. * MEAN_VM_CORE / MEAN_VM_MEMORY) -
                     (1. * totalCore / totalMem));
@@ -567,10 +572,10 @@ pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T){
         newPriceC = 1 - (PriceC[i] - minC) / (maxC - minC);
         newSm = 1 - (Sm[i] - minSm) / (maxSm - minSm);
         newNear = 1 - (Near[i] - minNear) / (maxNear - minNear);
-       
+
         choseF = buy_PriceWeight * newPriceF + buy_BalanceWeight * balanceF +
                  buy_leftSpaceWeight * spaceF +
-                 buy_PriceWithCapacituWeight * newPriceC + newSm * buy_SmWeight;
+                 buy_PriceWithCapacityWeight * newPriceC + newSm * buy_SmWeight;
 
         if (maxn < choseF)
           k = i, maxn = choseF;
@@ -819,6 +824,15 @@ void optimized_migrate(){
     }
 }
 
+void updateFactors(int today, int T){
+    if(today * 4 > 3 * T){
+        buy_PriceWithCapacityWeight = 2.0;
+        buy_PriceWeight = 0.0;
+        buy_BalanceWeight = 1.0;
+        buy_SmWeight = 0.0;
+    }
+}
+
 void solve(int today, int T){
 #ifdef DEBUG
   cout << today << " " << vOperation.size() << endl;
@@ -836,6 +850,13 @@ void solve(int today, int T){
         break;
       }
     }
+#ifdef DEBUG
+    for(auto &s : vAllServer){
+        if(isOccupied(s)){
+            totalCost += s.dailyCost;
+        }
+    }
+#endif
     doOutput();
 }
 
@@ -862,18 +883,24 @@ bool checkUsage(Server &server){
     int usedCore = server.nodeA.coreUsed + server.nodeB.coreUsed;
     int usedMem = server.nodeA.memoryUsed + server.nodeB.memoryUsed;
     if((float)usedCore / server.getCore() < minimumUseage){
-        cout << (float)(usedCore) / server.getCore() << " ";
-        cout << (float)(usedMem) / server.getMemory() << " ";
-        cout << endl;
+        //cout << (float)(usedCore) / server.getCore() << " ";
+        //cout << (float)(usedMem) / server.getMemory() << " ";
+        //cout << endl;
         return false;
     }
     if((float)usedMem / server.getMemory() < minimumUseage){
-        cout << (float)(usedCore) / server.getCore() << " ";
-        cout << (float)(usedMem) / server.getMemory() << " ";
-        cout << endl;
+        //cout << (float)(usedCore) / server.getCore() << " ";
+        //cout << (float)(usedMem) / server.getMemory() << " ";
+        //cout << endl;
         return false;
     }
     return true;
+}
+
+bool isOccupied(Server &server){
+    int usedCore = server.nodeA.coreUsed + server.nodeB.coreUsed;
+    int usedMem = server.nodeA.memoryUsed + server.nodeB.memoryUsed;
+    return usedCore > 0 || usedMem > 0;
 }
 
 // ***********************END ALGO*************************
@@ -946,11 +973,11 @@ int main()
         return 0;
       }
       if (!checkUsage(s)) {
-        // cout << s.tostring() << endl;
+        cout << s.tostring() << endl;
         unfilledSize += 1;
       }
     }
-    cout << "total price: " << totalPrice << " " << vAllServer.size() << " "
+    cout << "total cost: " << (totalCost + totalPrice) << " " << "device cost: "<< totalPrice << " " << vAllServer.size() << " "
          << unfilledSize << endl;
 
 #endif
