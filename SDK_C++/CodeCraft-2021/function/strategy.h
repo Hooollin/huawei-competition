@@ -16,18 +16,19 @@
 #include "./interaction.h"
 
 //购买权重（和为1）
-double buy_PriceWeight = 0.2;//按价格购买权重
-double buy_BalanceWeight = 0.3;//两个节点使用资源比例平衡参数
-double buy_leftSpaceWeight = 0.0;//剩余空间
-double buy_PriceWithCapacituWeight = 0.4;//性价比
-double buy_SmWeight = 0.1;//相似性购买
+
+double buy_PriceWeight = 0.16;//按价格购买权重
+double buy_BalanceWeight = 0.91;//两个节点使用资源比例平衡参数
+double buy_leftSpaceWeight = 0.49;//剩余空间
+double buy_PriceWithCapacituWeight = 0.29;//性价比
+double buy_SmWeight = 0.036;//相似性购买
 // double DayWeight = 0.8;
 
 //放置权值(和为1)
-double put_SelectWeight = 0.0;//碎片选择权重
-double put_NodeBlanceWeight = 0.5;//负载均衡参数
-double put_SimWeight = 0.;//相似放置
-double put_BalanceWeight = 0.5;//两个节点使用资源比例平衡参数
+double put_SelectWeight = 0.39;//碎片选择权重
+double put_NodeBlanceWeight = 0.86;//负载均衡参数
+double put_SimWeight = 0.7;//相似放置
+double put_BalanceWeight = 0.67;//两个节点使用资源比例平衡参数
 double put_NearWeight = 0.0;//相近放置
 
 //迁移权值（和为1）

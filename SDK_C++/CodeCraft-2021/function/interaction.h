@@ -267,6 +267,9 @@ void  statiInformation(){
 #endif
 
 #ifdef SEEK_PARAMETER
+     for (auto &s : vAllServer) {
+         totalPrice += s.getDeviceCost();
+     }
     cout << totalPrice;
 #endif
 }

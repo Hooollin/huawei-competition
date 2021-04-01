@@ -1,8 +1,23 @@
 #include "function/strategy.h"
 using namespace std;
 
-int main()
+int main(int argc, char *argv[])
 {
+#ifdef SEEK_PARAMETER
+    buy_PriceWeight = atof(argv[1]);//按价格购买权重
+    buy_BalanceWeight = atof(argv[2]);//两个节点使用资源比例平衡参数
+    buy_leftSpaceWeight = atof(argv[3]);//剩余空间
+    buy_PriceWithCapacituWeight = atof(argv[4]);//性价比
+    buy_SmWeight = atof(argv[5]);//相似性购买
+    // double DayWeight = 0.8;
+
+    //放置权值(和为1)
+    put_SelectWeight = atof(argv[6]);//碎片选择权重
+    put_NodeBlanceWeight = atof(argv[7]);//负载均衡参数
+    put_SimWeight = atof(argv[8]);//相似放置
+    put_BalanceWeight = atof(argv[9]);//两个节点使用资源比例平衡参数
+#endif
+
     ios::sync_with_stdio(false);
     cin.tie(0);
     cout.tie(0);
@@ -53,9 +68,6 @@ int main()
           readOperation();
         }
         solve(i, T);
-        if(i == 10){
-            break;
-        }
     }
 #ifdef DEBUG
     statiInformation();
