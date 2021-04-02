@@ -1,7 +1,5 @@
 #pragma once
 
-#define DEBUG
-//#define CHECKUSAGE
 
 #include <iostream>
 #include <vector>
