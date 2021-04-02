@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
       readVirtualMachineModel();
     }
 
-//将虚拟机模型按照大小排序
+    //将虚拟机模型按照大小排序
     sort(vVirtualMachineModel.begin(),vVirtualMachineModel.end(),[&](const VirtualMachineModel &a,const VirtualMachineModel &b){
         return a.core + a.memory < b.core + b.memory;
          });
@@ -53,14 +53,14 @@ int main(int argc, char *argv[])
         VirtualMachineModeltoPos[p.type] = i;
     }
 
- //将服务器模型按照大小排序
+        //将虚拟机模型按照大小排序
     sort(vServerModel.begin(),vServerModel.end(),[&](const ServerModel &a,const ServerModel &b){
         return a.core + a.memory < b.core + b.memory;
          });
     //并对应type：下标
     for(int i=0;i<vServerModel.size();i++){
         ServerModel &p = vServerModel[i];
-        sortedServerModel.push_back(unordered_set<int>{});
+        sortedServer.push_back(unordered_set<int>{});
         ServerModeltoPos[p.type] = i;
     }
 
