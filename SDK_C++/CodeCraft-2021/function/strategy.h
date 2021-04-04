@@ -296,20 +296,43 @@ pair<int, int> makePurchase3(VirtualMachineModel vmd, int today, int T){
     }
     //计算满足k天情况服务器最少新增最优解
     int expert_core = 0, expert_mem = 0;
+    vector<ServerModel> candidate(vServerModel.begin(), vServerModel.end());
+    vector<ServerModel> candidate_greedy(vServerModel.begin(), vServerModel.end());
 
-    pair<int, int> expert = getBetterServerResource(vOperationKdays, vServerModel);
+    sort(candidate.begin(), candidate.end(), [&](ServerModel&a, ServerModel&b){
+        double priceServerA = a.dailyCost * (T - today) + a.deviceCost;
+        double priceServerB = b.dailyCost * (T - today) + b.deviceCost;
+        double priceWithCapacityA =  priceServerA / a.memory + priceServerA / a.core;
+        double priceWithCapacityB =  priceServerB / b.memory + priceServerB / b.core;
+        return priceWithCapacityA < priceWithCapacityB;
+    });
+
+    sort(candidate_greedy.begin(), candidate_greedy.end(), [&](ServerModel&a, ServerModel&b){
+        double priceServerA = a.dailyCost * (T - today) + a.deviceCost;
+        double priceServerB = b.dailyCost * (T - today) + b.deviceCost;
+        return priceServerA < priceServerB;
+    });
+
+    pair<int, int> expert = getBetterServerResource(vOperationKdays, candidate);
     expert_core = expert.first;
     expert_mem = expert.second;
 
     //遍历服务器，选择满足k天情况最优的服务器
     int k = -1;
     int distance = 1000000000;
-    for(int i = 0; i < vServerModel.size(); i ++){
-        //寻找最接近expert资源的服务器(大于最好, 但是大于尚未写)
-        int new_distance = abs(vServerModel[i].core - expert_core) + abs(vServerModel[i] - expert_mem);
-        if(new_distance < distance){
-            distance = new_distance;
+    for(int i = 0; i < candidate_greedy.size(); i ++){
+        //判断是否有单服务器可以放下（贪心)
+        if(candidate_greedy[i].core >= expert_core && candidate_greedy[i].memory >= expert_mem){
             k = i;
+        }
+    }
+    if(k == -1){//单服务器放不下(最优性价比, 且最少购买服务器)
+        for(int i = 0; i < candidate.size(); i ++){
+            int new_distance = abs(vServerModel[i].core - expert_core) + abs(vServerModel[i].memory - expert_mem);
+            if(new_distance < distance){
+                distance = new_distance;
+                k = i;
+            }
         }
     }
     #ifdef DEBUG
@@ -329,21 +352,33 @@ pair<int, int> makePurchase3(VirtualMachineModel vmd, int today, int T){
 }
 
 //计算满足k天情况下的最优服务器(返回核心和内存)
-pair<int, int> getBetterServerResource(vector<vector<OP>> &vOperationKdays, vector<ServerModel> vServerModel){
+pair<int, int> getBetterServerResource(vector<vector<OP>> &vOperationKdays, vector<ServerModel>& vServerModel){
     //vServerModel 按性价比排序
     //按性价比排序所以服务器(价格比上性能，越小越好)
-    sort(vServerModel.begin(), vServerModel.end(), [&](ServerModel&a, ServerModel&b){
-        double priceServerA = a.getDailyCost() * (T - today) + a.getDeviceCost();
-        double priceServerB = b.getDailyCost() * (T - today) + b.getDeviceCost();
-        double priceWithCapacityA =  priceServerA / a.totalMem + priceServerA / a.totalCore;
-        double priceWithCapacityB =  priceServerB / b.totalMem + priceServerB / b.totalCore;
-        return priceWithCapacityA < priceWithCapacityB;
-    });
     int expert_core = 0, expert_mem = 0;
+    int core = 0, mem = 0;
     for(int i = 0; i < vOperationKdays.size(); i ++){
         for(int j = 0;j < vOperationKdays[i].size(); j ++){
             //判断这个操作对于当前情况需不需要购买服务器，如果需要，则将当前操作虚拟机需要资源加进expert
-
+            OP op = vOperationKdays[i][j];
+            VirtualMachineModel vmd = mTypeToVirtualMachineModel[op.machineType];
+            if(op.opType == DEL){
+                //删除(未考虑单双节点)
+                core -= vmd.core;
+                mem -= vmd.memory;
+            }else if(op.opType == ADD){
+                bool canAlloc = 0;
+                //判断服务器是否还可以放下（应该用当前剩余来判断，且可分配后需要更新）
+                for(auto& server: vAllServer)
+                    if(canPut(server, vmd))
+                        canAlloc = 1;
+                if(!canAlloc){
+                    core += vmd.core;
+                    core -= vmd.core;
+                }
+            }
+            expert_core = max(core, expert_core);
+            expert_mem = max(mem, expert_mem);
         }
     }
     return make_pair(expert_core, expert_mem)
