@@ -11,23 +11,23 @@ upperbound = [1,1,1,1,1, 1,1,1,1,1]
 def tar_func(x):
     inf = 1e40
     timeout = 100
-    train1 = open('../training-1.txt', 'r')
-    train2 = open('../training-2.txt', 'r')
+    train1 = open('training-1.txt', 'r')
+    train2 = open('training-2.txt', 'r')
 
     cmd = ["./../SDK_C++/bin/CodeCraft-2021"]
     for x_i in x:
         cmd.append(str(x_i))
     try:
-        #completedProcess1 = subprocess.run(cmd, stdin=train1, capture_output=True, encoding="utf-8", timeout=timeout)
+        completedProcess1 = subprocess.run(cmd, stdin=train1, capture_output=True, encoding="utf-8", timeout=timeout)
 
         completedProcess2 = subprocess.run(cmd, stdin=train2, capture_output=True, encoding="utf-8", timeout=timeout)
 
-        #output1 = int(completedProcess1.stdout)
+        output1 = int(completedProcess1.stdout)
         output2 = int(completedProcess2.stdout)
     except TimeoutExpired:
         output1 = inf
         output2 = inf
-    output1 = 0
+
     print(x, output1, output2, output1 + output2)
     return output1 + output2
 

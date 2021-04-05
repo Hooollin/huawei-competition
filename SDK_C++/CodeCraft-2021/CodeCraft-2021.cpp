@@ -53,6 +53,17 @@ int main(int argc, char *argv[])
         VirtualMachineModeltoPos[p.type] = i;
     }
 
+        //将虚拟机模型按照大小排序
+    sort(vServerModel.begin(),vServerModel.end(),[&](const ServerModel &a,const ServerModel &b){
+        return a.core + a.memory < b.core + b.memory;
+         });
+    //并对应type：下标
+    for(int i=0;i<vServerModel.size();i++){
+        ServerModel &p = vServerModel[i];
+        sortedServer.push_back(unordered_set<int>{});
+        ServerModeltoPos[p.type] = i;
+    }
+
     long long vmcoresum = 0, vmmemsum = 0;
     for (int i = 0; i < vVirtualMachineModel.size(); i++) {
       vmcoresum += vVirtualMachineModel[i].core;

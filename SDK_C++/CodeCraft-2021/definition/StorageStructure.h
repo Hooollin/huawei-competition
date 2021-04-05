@@ -19,6 +19,9 @@ unordered_map<string, ServerModel> mTypeToServerModel; // 所有服务器型号�
 unordered_map<string, VirtualMachineModel> mTypeToVirtualMachineModel; // 所有虚拟机型号； key: type -> value:
 
 vector<ServerModel> vServerModel;
+vector<unordered_set<int> > sortedServer; //下标对应排序的vServerModel,set内包含所有该类型model的服务器id;
+unordered_map<string,int > ServerModeltoPos ; //各个服务器模型type对应的排序后的下标
+
 vector<VirtualMachineModel> vVirtualMachineModel;
 vector<unordered_set<int> > sortedVirtualMachine; //下标对应排序的vVitrualMachineModel,set内包含所有该类型model的虚拟机id;
 unordered_map<string,int > VirtualMachineModeltoPos ; //各个虚拟机模型type对应的排序后的下标
