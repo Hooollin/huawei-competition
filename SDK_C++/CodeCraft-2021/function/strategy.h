@@ -28,7 +28,7 @@ double put_SelectWeight = 0.07;//碎片选择权重
 double put_NodeBlanceWeight = 0.91;//负载均衡参数
 double put_SimWeight = 0.05;//相似放置
 double put_BalanceWeight = 0.53;//两个节点使用资源比例平衡参数
-double put_PriceWithCapacityWeight = 0.5;
+double put_PriceWithCapacityWeight = 0.05;
 double put_NearWeight = 0.0;//相近放置
 
 //迁移权值（和为1）
@@ -1204,8 +1204,8 @@ void solve(int today, int T){
 #endif
 #endif
     // 顺序遍历每次操作
-    migrate(today,T,vOperation.size(),preDayPurchase);
-    //small_virtual_machine_migrate(today,T);
+    //migrate(today,T,vOperation.size(),preDayPurchase);
+    small_virtual_machine_migrate(today,T);
     //migrate();
     for (auto &op : vOperation) {
       switch (op.opType) {
