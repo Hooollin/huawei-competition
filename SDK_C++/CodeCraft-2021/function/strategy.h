@@ -28,8 +28,12 @@ double put_SelectWeight = 0.07;//碎片选择权重
 double put_NodeBlanceWeight = 0.91;//负载均衡参数
 double put_SimWeight = 0.05;//相似放置
 double put_BalanceWeight = 0.53;//两个节点使用资源比例平衡参数
-double put_PriceWithCapacityWeight = 0.5;
+double put_PriceWithCapacityWeight = 0.05;
 double put_NearWeight = 0.0;//相近放置
+
+//前一天购买服务器量
+
+int preDayPurchase = -1;
 
 //迁移权值（和为1）
 double migrate_chipWeight = 1.0;//碎片选择权重
@@ -43,11 +47,10 @@ const double migrate_changeData = 9000;
 
 //dp策略填充机器量
 
-const int dp_machineNumber = 70;
+const int dp_machineNumber = 100000;
 
-//前一天购买服务器量
-
-int preDayPurchase = -1;
+//
+const int migrate_search = 25;
 
 // work
 void solve(int day, int T);
@@ -57,7 +60,7 @@ void optimized_migrate(int today,int T,int totalOperation);
 
 void migrate(int today,int T,int opNum,int prePurchase);
 
-int dp_migrate(int today,int T,int totalOperation);
+int dp_migrate(int today,int T,int totalOperation,bool small);
 
 void small_virtual_machine_migrate(int today,int T);
 
@@ -731,7 +734,7 @@ void migrate_by_costperf(int today,int T){
     }
 }
 
-void migrate(int today,int T,int opNum,int prePurchase){
+void migrate(int today,int T,int opNum,int preDayPurchase){
 // 在这一轮总共可以迁移的次数
 #ifdef DEBUG
   if(mVmidToVirtualMachine.size() != VM_AMOUNT){
@@ -741,15 +744,14 @@ void migrate(int today,int T,int opNum,int prePurchase){
 #endif
     int totalOperation = 3 * VM_AMOUNT / 100;
     clear_small_server_migrate(today,T,totalOperation);
-
-/*
-    if(opNum > migrate_changeData && prePurchase == 0){
-        int leftOperation = dp_migrate(today,T,totalOperation);
+    /*
+    if(opNum > migrate_changeData && preDayPurchase == 0){
+        int leftOperation = dp_migrate(today,T,totalOperation,1);
         optimized_migrate(today,T,leftOperation);
+    }else{
+        optimized_migrate(today,T,totalOperation);
     }
-    optimized_migrate(today,T,totalOperation);
-*/
-
+    */
     return ;
 }
 
@@ -763,7 +765,7 @@ inline int getVMModelCap(VirtualMachineModel &vmd){
     return vmd.core +  vmd.memory;
 }
 
-int dp_migrate(int today,int T,int totalOperation){//返回最终迁移次数
+int dp_migrate(int today,int T,int totalOperation,bool small){//返回最终迁移次数
     //存储需要dp的服务器Id
     vector<int> storeServerId;
     //可以动态增删，查找符合要求碎片大小的服务器的set
@@ -777,15 +779,27 @@ int dp_migrate(int today,int T,int totalOperation){//返回最终迁移次数
     vector<unordered_set<int> > leftVM = sortedVirtualMachine;
 
     int migrateServerNum = dp_machineNumber;
-    //获取小服务器进行dp迁移
-    for(int i=0;i<sortedServer.size();i++){
-        for(int serverId : sortedServer[i]){
-            storeServerId.push_back(serverId);
-            migrateServerNum --;
+    //获取服务器进行dp迁移
+    if(!small){
+        for(int i=sortedServer.size() - 1;i>=0;i--){
+            for(int serverId : sortedServer[i]){
+                storeServerId.push_back(serverId);
+                migrateServerNum --;
+                if(migrateServerNum <= 0) break;
+            }
             if(migrateServerNum <= 0) break;
         }
-        if(migrateServerNum <= 0) break;
+    }else{
+        for(int i=0;i<sortedServer.size();i++){
+            for(int serverId : sortedServer[i]){
+                storeServerId.push_back(serverId);
+                migrateServerNum --;
+                if(migrateServerNum <= 0) break;
+            }
+            if(migrateServerNum <= 0) break;
+        }
     }
+
     //获得各虚拟机类型的数量，单节点服务器成对放,双节点为虚拟机个数，单节点为虚拟机对数
     vector<int> virtualMachineNum;
     for(int i=0;i<sortedVirtualMachine.size();i++){
@@ -904,7 +918,18 @@ int dp_migrate(int today,int T,int totalOperation){//返回最终迁移次数
 #endif // DEBUG
                 VirtualMachine &vm = mVmidToVirtualMachine[vmid];
                 set<pair<int,int> >::iterator p = fragments.lower_bound(make_pair(getVMCap(vm),0));
-                while(p != fragments.end()  && (!canPut(mServerIdToServer[p->second],vm) || p->second == fromServerId )) p ++;
+                while(p != fragments.end()){
+                      if(p->first != getServerChip(mServerIdToServer[p->second])){
+                        //更新fragment
+                        auto tmp = p;
+                        tmp ++;
+                        fragments.erase(p);
+                        p = tmp;
+                      }else{
+                            if(!canPut(mServerIdToServer[p->second],vm) || p->second == fromServerId) p++;
+                            else break;
+                      }
+                }
                 if(p == fragments.end()) break;
                 int choice = canPut(mServerIdToServer[p->second],vm);
                 if(choice == NONE) break;
@@ -917,9 +942,6 @@ int dp_migrate(int today,int T,int totalOperation){//返回最终迁移次数
                     }
                 }
                 vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[toServerId],choice));
-                //更新fragment
-                fragments.erase(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
-                fragments.erase(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
                 // 迁移到新的服务器上
                 migrateVirtualMachineToServer(vmid, {toServerId, choice});
                 //更新fragment
@@ -963,9 +985,6 @@ int dp_migrate(int today,int T,int totalOperation){//返回最终迁移次数
                     Server fromServer = mServerIdToServer[fromServerId];
                     int choice = A;
                     vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[toServerId],choice));
-                    //更新fragment
-                    fragments.erase(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
-                    fragments.erase(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
                     // 迁移到新的服务器上
                     migrateVirtualMachineToServer(vmid, {toServerId, choice});
                     //更新fragment
@@ -987,9 +1006,6 @@ int dp_migrate(int today,int T,int totalOperation){//返回最终迁移次数
                     fromServer = mServerIdToServer[fromServerId];
                     choice = B;
                     vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[toServerId],choice));
-                    //更新fragment
-                    fragments.erase(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
-                    fragments.erase(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
                     // 迁移到新的服务器上
                     migrateVirtualMachineToServer(vmid, {toServerId, choice});
                     //更新fragment
@@ -1023,9 +1039,6 @@ int dp_migrate(int today,int T,int totalOperation){//返回最终迁移次数
                     Server fromServer = mServerIdToServer[fromServerId];
                     int choice = ServerAndNode.second;
                     vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[toServerId],choice));
-                    //更新fragment
-                    fragments.erase(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
-                    fragments.erase(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
                     // 迁移到新的服务器上
                     migrateVirtualMachineToServer(vmid, {toServerId, choice});
                     //更新fragment
@@ -1038,7 +1051,6 @@ int dp_migrate(int today,int T,int totalOperation){//返回最终迁移次数
                     //总迁移次数-1
                     totalOperation --;
                 }
-
             }
         }
     }
@@ -1146,35 +1158,43 @@ void clear_small_server_migrate(int today,int T,int totalOperation){
             tmp.push_back(serverId);
         }
         sort(tmp.begin(),tmp.end(),[&](const int &a,const int &b){
-             return mServerHasVirtualMachine[a].size() < mServerHasVirtualMachine[b].size();
+             return mServerHasVirtualMachine[a].size() > mServerHasVirtualMachine[b].size();
              });
         for(int serverId : p){
             serverIdsq.push_back(serverId);
         }
     }
     reverse(serverIdsq.begin(),serverIdsq.end());
-    set<pair<int,int> > fragments;//(碎片大小，serverId)
-    for(pair<int,Server> p : mServerIdToServer){
-        Server &server = p.second;
-        fragments.insert(make_pair(getServerChip(server),p.first));
+    vector<int> serverIdx;
+    int idx = 0;
+    vector<int> fragments;
+    for(auto p : vAllServer){
+        serverIdx.push_back(idx++);
+        fragments.push_back(getServerChip(p));
     }
-    for(int i=0;i<serverIdsq.size();i++){
-        if(totalOperation <= 0) break;
+    sort(serverIdx.begin(),serverIdx.end(),[&](const int &a,const int &b){
+         return fragments[a] < fragments[b];
+         });
+    sort(fragments.begin(),fragments.end());
+    int allSize = fragments.size();
+    unordered_set<int> exist;//用于标记该服务器是否处于被迁移的队列中
+    for(int i=0;i<serverIdsq.size() && totalOperation >= 0;i++){
         int fromServerId = serverIdsq[i];
-        int fromServerIdx = i;
         Server &server = mServerIdToServer[fromServerId];
-        set<pair<int,int> >::iterator last;
-        fragments.erase(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
+        int last;
+        exist.insert(fromServerId);
+        vector<pair<int,int> > modify;//记录修改的数据结构
         for (auto p : mServerHasVirtualMachine[fromServerId]) {
-            if(totalOperation <= 0) break;
             int vmid = p.second;
             VirtualMachine &vm = mVmidToVirtualMachine[vmid];
-            last = fragments.upper_bound(make_pair(getVMCap(vm),0));
-            while(last != fragments.end() && !canPut(mServerIdToServer[last->second],vm)) last ++;
-            if(last == fragments.end()) continue;
-            int choice = canPut(mServerIdToServer[last->second],vm);
+            last = lower_bound(fragments.begin(),fragments.end(),getVMCap(vm)) - fragments.begin();
+            int left = migrate_search;
+            while(last != allSize &&(exist.find(vAllServer[serverIdx[last]].id) != exist.end() || !canPut(vAllServer[serverIdx[last]],vm)) && left >= 0) last ++,left --;
+            if(last == allSize) continue;
+            int toServerId = vAllServer[serverIdx[last]].id;
+            int choice = canPut(mServerIdToServer[toServerId],vm);
             if(choice == NONE) continue;
-            int toServerId = last->second;
+
             if(vm.getSingle() && choice == BOTH){
                 if(compareNode(mServerIdToServer[toServerId].nodeA,mServerIdToServer[toServerId].nodeB,vm)) {
                   choice = A;
@@ -1183,17 +1203,18 @@ void clear_small_server_migrate(int today,int T,int totalOperation){
                 }
             }
             vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[toServerId],choice));
-            //更新fragment
-            fragments.erase(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
             // 迁移到新的服务器上
             migrateVirtualMachineToServer(vmid, {toServerId, choice});
-            //更新fragment
-            fragments.insert(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
             //更新数据结构
-            mServerHasVirtualMachine[fromServerId].erase({vm.getCore() + vm.getMemory(), vmid});
+            modify.push_back(make_pair(vm.getCore() + vm.getMemory(), vmid));
             //总迁移次数-1
             totalOperation --;
+            if(totalOperation <= 0) break;
         }
+        for(auto p : modify){
+            mServerHasVirtualMachine[fromServerId].erase(p);
+        }
+        if(totalOperation <= 0) break;
     }
     return ;
 }
