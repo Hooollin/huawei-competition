@@ -24,11 +24,11 @@ double buy_SmWeight = 0.00;//相似性购买
 // double DayWeight = 0.8;
 
 //放置权值(和为1)
-double put_SelectWeight = 0.3;//碎片选择权重
+double put_SelectWeight = 0.0;//碎片选择权重
 double put_NodeBlanceWeight = 0.91;//负载均衡参数
 double put_SimWeight = 0.00;//相似放置
 double put_BalanceWeight = 0.93;//两个节点使用资源比例平衡参数
-double put_PriceWithCapacityWeight = 0.05;
+double put_PriceWithCapacityWeight = 0.4;
 double put_NearWeight = 0.0;//相近放置
 
 //迁移权值（和为1）
@@ -1279,7 +1279,6 @@ void solve(int today, int T){
             break;
         }
         leftOperation = nowLeft;
-        //cout << "left operation: "<< leftOperation << endl;
     }
     //migrate(today, T, 0, 0);
     for (auto &op : vOperation) {
