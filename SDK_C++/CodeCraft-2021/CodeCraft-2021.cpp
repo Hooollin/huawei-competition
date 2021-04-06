@@ -83,16 +83,23 @@ int main(int argc, char *argv[])
     //计算相似度
     cin >> T >> K;
 
-    for(int i = 1; i <= T; i++){
-        int R;
-        cin >> R;
-        cin.ignore(); //忽略回车
-
-        initializeOperationVector();
-        while(R-- > 0){
-          readOperation();
+    // 下标0为空
+    vAllOperation.push_back({});
+    int l = 1, r = 1;
+    while(l <= T){
+        while(r - l + 1 <= K){
+            int R;
+            cin >> R;
+            cin.ignore();
+            initializeOperationVector();
+            while(R-- > 0){
+                readOperation();
+            }
+            vAllOperation.push_back(vOperation);
+            r += 1;
         }
-        solve(i, T);
+        solve(l, r, T);
+        l += 1;
     }
 #ifdef DEBUG
     statiInformation();
