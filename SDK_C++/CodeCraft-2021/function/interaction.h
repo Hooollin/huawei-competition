@@ -256,11 +256,11 @@ void  statiInformation(){
     for (auto &s : vAllServer) {
       totalPrice += s.getDeviceCost();
       if (!checkServer(s)) {
-        cout << s.tostring() << endl;
+        //cout << s.tostring() << endl;
         return ;
       }
       if (!checkUsage(s)) {
-        // cout << s.tostring() << endl;
+        cout << s.tostring() << endl;
         unfilledSize += 1;
       }
     }
