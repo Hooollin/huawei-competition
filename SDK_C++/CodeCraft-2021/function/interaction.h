@@ -252,13 +252,14 @@ void  statiInformation(){
     cout << "vm count: " << vmcount << endl;
     int unfilledSize = 0;
     for (auto &s : vAllServer) {
+        //cout << s.tostring() << endl;
       totalPrice += s.getDeviceCost();
       if (!checkServer(s)) {
-        //cout << s.tostring() << endl;
+        cout << s.tostring() << endl;
         return ;
       }
       if (!checkUsage(s)) {
-        cout << s.tostring() << endl;
+        //cout << s.tostring() << endl;
         unfilledSize += 1;
       }
     }
