@@ -1,5 +1,8 @@
 #pragma once
 
+#define DEBUG
+//#define CHECKUSAGE
+
 #include <iostream>
 #include <vector>
 #include <map>
@@ -11,8 +14,6 @@
 #include <queue>
 #include <set>
 #include <unordered_map>
-
-#include "../definition/CONSTANTS.h"
 #include "../definition/StorageStructure.h"
 
 int addcount = 0;
@@ -33,6 +34,7 @@ int MEAN_VM_CORE = 0;
 int MEAN_VM_MEMORY = 0;
 int VM_AMOUNT = 0;
 double MAX_SIMI = -1, MIN_SIMI = 0x3f3f3f3f;
+int MAX_DEVICE_COST = -1, MAX_DAILY_COST = -1;
 
 int MAXSOURCE = 0;
 
@@ -217,7 +219,6 @@ void doOutput(){
 #ifdef DEBUG
         vmcount ++;
 #endif // DEBUG
-
 #ifndef DEBUG
 #ifndef SEEK_PARAMETER
         cout << s << endl;
@@ -263,13 +264,13 @@ void  statiInformation(){
         unfilledSize += 1;
       }
     }
-    cout << "total price: " << totalPrice << " " << vAllServer.size() << " " << unfilledSize << endl;
+    cout << "total price: " << totalPrice << " " << vAllServer.size() << " "
+         << unfilledSize << endl;
 #endif
-
 #ifdef SEEK_PARAMETER
-     for (auto &s : vAllServer) {
-         totalPrice += s.getDeviceCost();
-     }
+    for(auto &s : vAllServer){
+        totalPrice += s.getDeviceCost();
+    }
     cout << totalPrice;
 #endif
 }
