@@ -1208,14 +1208,7 @@ void solve(int startDay, int endDay, int T){
     // 顺序遍历每次操作
     //migrate(today,T,vOperation.size(),preDayPurchase);
     int totalMigration = 3 * VM_AMOUNT / 100;
-    int last = totalMigration;
-    while(true){
-        int now = optimized_migrate(today, T, totalMigration);
-        if(now == last){
-            break;
-        }
-        last = now;
-    }
+    optimized_migrate(today, T, totalMigration);
     //migrate();
     for (auto &op : vAllOperation[today]) {
         switch (op.opType) {
