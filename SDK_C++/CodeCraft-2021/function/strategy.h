@@ -31,6 +31,7 @@ double put_BalanceWeight = 0.53;//两个节点使用资源比例平衡参数
 double put_PriceWithCapacityWeight = 0.05;
 double put_NearWeight = 0.0;//相近放置
 
+
 //迁移权值（和为1）
 double migrate_chipWeight = 1.0;//碎片选择权重
 double migrate_balanceWeight = 0;//平衡权重
@@ -54,6 +55,8 @@ void solve(int startDay, int endDay, int T);
 
 // migrate
 int optimized_migrate(int today,int T,int totalOperation);
+
+int optimized_migrate(int today,int T, set<int> &idx, int totalOperation);
 
 void migrate(int today,int T,int opNum,int prePurchase);
 
@@ -431,6 +434,7 @@ pair<int,int> makePurchase2(VirtualMachineModel vmd, int today, int T){
 }
 
 void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, pair<int,int> serverAndNode){
+    VM_AMOUNT += 1;
     //找到对应的server
     int serverId = serverAndNode.first, node = serverAndNode.second;
     Server server = mServerIdToServer[serverId];
@@ -490,7 +494,6 @@ void migrateVirtualMachineToServer(int vmid, pair<int, int> serverAndNode){
 
 void allocateServer(OP addop, int today, int T){
     int vmid = addop.id;
-    VM_AMOUNT += 1;
     // 需要新增虚拟机的型号
     VirtualMachineModel vmd = mTypeToVirtualMachineModel[addop.machineType];
     //新增的虚拟机实例
@@ -730,6 +733,7 @@ void migrate_by_costperf(int today,int T){
 
     }
 }
+
 
 void migrate(int today,int T,int opNum,int prePurchase){
     // 在这一轮总共可以迁移的次数
@@ -1045,6 +1049,230 @@ int dp_migrate(int today,int T,int totalOperation){//返回最终迁移次数
     return totalOperation;
 }
 
+int getUsedSpace(int serverIdx){
+    Server &svr = vAllServer[serverIdx];
+    return svr.nodeA.coreUsed + svr.nodeA.memoryUsed + svr.nodeB.coreUsed + svr.nodeB.memoryUsed;
+}
+
+bool isBetter(VirtualMachine &vm, int currServerIdx, int targetServerIdx){
+    return vAllServer[currServerIdx].getDeviceCost() > vAllServer[targetServerIdx].getDeviceCost();
+}
+int _optimized_migrate(int today, int T, set<int> &serverIdx, int totalOperation){
+    // 在这一轮总共可以迁移的次数
+#ifdef DEBUG
+    assert(mVmidToVirtualMachine.size() == VM_AMOUNT);
+#endif
+    vector<int> usedSpaceIdx(serverIdx.begin(), serverIdx.end());
+    vector<int> storage;
+    vector<int> storageServerIdx(serverIdx.begin(), serverIdx.end());
+    //int idx = 0;
+    for(int i = 0; i < vAllServer.size(); i++){
+        if(serverIdx.find(i) == serverIdx.end()){
+            continue;
+        }
+        auto &server = vAllServer[i];
+        int leftACore = server.nodeA.coreRem, leftBCore = server.nodeB.coreRem;
+        int leftAMem = server.nodeA.memoryRem, leftBMem = server.nodeB.memoryRem;
+        storage.push_back(MAXSOURCE - (leftACore + leftBCore + leftAMem + leftBMem));
+        //idx++;
+    }
+    //vAllServer[a].getCore() + vAllServer[a].getMemory() < vAllServer[b].getCore() + vAllServer[b].getMemory();
+    sort(usedSpaceIdx.begin(), usedSpaceIdx.end(), [&](int a, int b){
+            return getUsedSpace(a) < getUsedSpace(b);
+            });
+    sort(storageServerIdx.begin(), storageServerIdx.end(),
+            [&](int a, int b) { return storage[a] < storage[b] || (storage[a] == storage[b] && vAllServer[a].getDailyCost() > vAllServer[b].getDailyCost()); });
+    sort(storage.begin(), storage.end());
+
+#ifdef DEBUG
+    assert(storage.size() == storageServerIdx.size());
+#endif
+    map<int, int> mp;
+    for(int i = 0; i < usedSpaceIdx.size(); i++){
+        for(int j = 0; j < storageServerIdx.size(); j++){
+            if(usedSpaceIdx[i] == storageServerIdx[j]){
+                mp[i] = j;
+                break;
+            }
+        }
+    }
+
+    int end = storageServerIdx.size() - 1;
+    for (int i = 0; i < usedSpaceIdx.size() && totalOperation > 0; i++) {
+        // fromServer: 当前需要移除虚拟机的服务器
+        int fromServerIdx = usedSpaceIdx[i];
+        // 需要移除虚拟机的服务器在vServers中的下标
+        int fromServerId = vAllServer[fromServerIdx].id;
+        // 存储循环中被移动到了新的服务器的虚拟机的vmid
+        vector<pair<int, int>> modified;
+        int last = end;
+        int usedCore = 0, usedMem = 0;
+        for (auto p : mServerHasVirtualMachine[fromServerId]) {
+            int vmid = p.second;
+            VirtualMachine &vm = mVmidToVirtualMachine[vmid];
+            usedCore += vm.getCore(), usedMem = vm.getMemory();
+            int needed = MAXSOURCE - vm.getCore() - vm.getMemory();
+            last = upper_bound(storage.begin(), storage.end(), needed) -
+                storage.begin();
+            last--;
+#ifdef DEBUG
+            assert(mVmidToVirtualMachine.find(vmid) !=
+                    mVmidToVirtualMachine.end());
+#endif
+            int targetServerIdx = -1;
+            int targetChoice = NONE;
+            int cmpcount = 0;
+            //从碎片小的服务器往下找，直到第一个可以放下这个虚拟机的服务器
+            while(last > mp[i] && totalOperation > 0 && cmpcount <= 1){
+                // toServerIdx：被迁移虚拟机的去向
+                int toServerIdx = storageServerIdx[last];
+                // toServer在vServers中的下标
+                int toServerId = vAllServer[toServerIdx].id;
+                // 遍历到自己
+                if(fromServerId == toServerId){
+                    last -= 1;
+                    continue;
+                }
+                // choice可以放在哪个结点
+                int choice = canPut(vAllServer[toServerId], vm);
+                if(choice > 0 && !serverEmpty(vAllServer[toServerIdx])){
+                    cmpcount += 1;
+                    if(vm.getSingle() && choice == BOTH){
+                        if(compareNode(mServerIdToServer[toServerIdx].nodeA,mServerIdToServer[toServerId].nodeB,vm)) {
+                            choice = A;
+                        } else {
+                            choice = B;
+                        }
+                    }
+                    if(targetServerIdx == -1  || isBetter(vm, toServerIdx, targetServerIdx)){
+                        targetServerIdx = toServerId;
+                        targetChoice = choice;
+                    }
+                }else{
+                    last -= 1;
+                }
+            }
+            if(targetServerIdx != -1){
+                serverIdx.erase(fromServerId);
+                vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[targetServerIdx], targetChoice));
+                // 迁移到新的服务器上
+                migrateVirtualMachineToServer(vmid, {targetServerIdx, targetChoice});
+                // 在for loop中修改集合中的元素会导致bug
+                modified.push_back({vm.getCore() + vm.getMemory(), vmid});
+                // 可迁移次数减1
+                totalOperation -= 1;
+            }
+        }
+        //cout << fromServerId << ": " << usedCore << " " << usedMem << " " << (usedCore + usedMem) << endl;;
+        // 更新数据结构
+        for(auto &p : modified){
+            mServerHasVirtualMachine[fromServerId].erase(p);
+        }
+    }
+    return totalOperation;
+}
+
+int optimized_migrate(int today, int T, set<int> &serverIdx, int totalOperation){
+    // 在这一轮总共可以迁移的次数
+#ifdef DEBUG
+    assert(mVmidToVirtualMachine.size() == VM_AMOUNT);
+#endif
+    vector<int> storage;
+    vector<int> storageServerIdx(serverIdx.begin(), serverIdx.end());
+    //int idx = 0;
+    for(int i = 0; i < vAllServer.size(); i++){
+        if(serverIdx.find(i) == serverIdx.end()){
+            continue;
+        }
+        auto &server = vAllServer[i];
+        int leftACore = server.nodeA.coreRem, leftBCore = server.nodeB.coreRem;
+        int leftAMem = server.nodeA.memoryRem, leftBMem = server.nodeB.memoryRem;
+
+        storage.push_back(MAXSOURCE - (leftACore + leftBCore + leftAMem + leftBMem));
+        //idx++;
+    }
+    //vAllServer[a].getCore() + vAllServer[a].getMemory() < vAllServer[b].getCore() + vAllServer[b].getMemory();
+
+    sort(storageServerIdx.begin(), storageServerIdx.end(),
+            [&](int a, int b) { return storage[a] < storage[b] || (storage[a] == storage[b] && vAllServer[a].getDailyCost() > vAllServer[b].getDailyCost()); });
+    sort(storage.begin(), storage.end());
+
+#ifdef DEBUG
+    assert(storage.size() == storageServerIdx.size());
+#endif
+
+    int end = storageServerIdx.size() - 1;
+    for (int i = 0; i < storageServerIdx.size() && totalOperation > 0; i++) {
+        // fromServer: 当前需要移除虚拟机的服务器
+        int fromServerIdx = storageServerIdx[i];
+        // 需要移除虚拟机的服务器在vServers中的下标
+        int fromServerId = vAllServer[fromServerIdx].id;
+        // 存储循环中被移动到了新的服务器的虚拟机的vmid
+        vector<pair<int, int>> modified;
+        int last = end;
+        int usedCore = 0, usedMem = 0;
+        for (auto p : mServerHasVirtualMachine[fromServerId]) {
+            int vmid = p.second;
+            VirtualMachine &vm = mVmidToVirtualMachine[vmid];
+            usedCore += vm.getCore(), usedMem = vm.getMemory();
+            int needed = MAXSOURCE - vm.getCore() - vm.getMemory();
+            last = upper_bound(storage.begin(), storage.end(), needed) -
+                storage.begin();
+            last--;
+#ifdef DEBUG
+            assert(mVmidToVirtualMachine.find(vmid) !=
+                    mVmidToVirtualMachine.end());
+#endif
+            int targetServerIdx = -1;
+            int targetChoice = NONE;
+            int cmpcount = 0;
+            //从碎片小的服务器往下找，直到第一个可以放下这个虚拟机的服务器
+            while(last > i && totalOperation > 0 && cmpcount <= 1){
+                // toServerIdx：被迁移虚拟机的去向
+                int toServerIdx = storageServerIdx[last];
+                // toServer在vServers中的下标
+                int toServerId = vAllServer[toServerIdx].id;
+
+                // choice可以放在哪个结点
+                int choice = canPut(vAllServer[toServerId], vm);
+                if(choice > 0 && !serverEmpty(vAllServer[toServerIdx])){
+                    cmpcount += 1;
+                    if(vm.getSingle() && choice == BOTH){
+                        if(compareNode(mServerIdToServer[toServerIdx].nodeA,mServerIdToServer[toServerId].nodeB,vm)) {
+                            choice = A;
+                        } else {
+                            choice = B;
+                        }
+                    }
+                    if(targetServerIdx == -1  || isBetter(vm, toServerIdx, targetServerIdx)){
+                        targetServerIdx = toServerId;
+                        targetChoice = choice;
+                    }
+                }else{
+                    last -= 1;
+                }
+            }
+            if(targetServerIdx != -1){
+                serverIdx.erase(fromServerIdx);
+                vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[targetServerIdx], targetChoice));
+                // 迁移到新的服务器上
+                migrateVirtualMachineToServer(vmid, {targetServerIdx, targetChoice});
+                // 在for loop中修改集合中的元素会导致bug
+                modified.push_back({vm.getCore() + vm.getMemory(), vmid});
+                // 可迁移次数减1
+                totalOperation -= 1;
+            }
+        }
+        //cout << fromServerId << ": " << usedCore << " " << usedMem << " " << (usedCore + usedMem) << endl;;
+        // 更新数据结构
+        for(auto &p : modified){
+            mServerHasVirtualMachine[fromServerId].erase(p);
+        }
+    }
+    return totalOperation;
+}
+
+
 int optimized_migrate(int today, int T, int totalOperation){
     // 在这一轮总共可以迁移的次数
 #ifdef DEBUG
@@ -1207,8 +1435,19 @@ void solve(int startDay, int endDay, int T){
 #endif
     // 顺序遍历每次操作
     //migrate(today,T,vOperation.size(),preDayPurchase);
-    int totalMigration = 3 * VM_AMOUNT / 100;
-    optimized_migrate(today, T, totalMigration);
+    set<int> idxs;
+    for(int i = 0; i < vAllServer.size(); i++){
+        idxs.insert(i);
+    }
+    int totalMigration =  3 * VM_AMOUNT / 100;
+    int lastMigration = totalMigration;
+    while(true){
+        int remMigration = optimized_migrate(today, T, idxs, lastMigration);
+        if(remMigration == lastMigration){
+            break;
+        }
+        lastMigration = remMigration;
+    }
     //migrate();
     for (auto &op : vAllOperation[today]) {
         switch (op.opType) {
