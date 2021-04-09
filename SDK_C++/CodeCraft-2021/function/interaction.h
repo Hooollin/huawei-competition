@@ -1,6 +1,6 @@
 #pragma once
 
-#define DEBUG
+//#define DEBUG
 //#define CHECKUSAGE
 
 #include <iostream>
@@ -246,6 +246,7 @@ string makeMigrateOutput(int vmid,int serverId,int node){
 
 void  statiInformation(){
     int totalPrice = dailycost;
+#ifdef DEBUG
 #ifndef SEEK_PARAMETER
     cout << "N: " << vServerModel.size() << endl;
     cout << "M: " << vVirtualMachineModel.size() << endl;
@@ -260,12 +261,13 @@ void  statiInformation(){
         return ;
       }
       if (!checkUsage(s)) {
-        cout << s.tostring() << endl;
+        //cout << s.tostring() << endl;
         unfilledSize += 1;
       }
     }
     cout << "total price: " << totalPrice << " " << vAllServer.size() << " "
          << unfilledSize << endl;
+#endif
 #endif
 #ifdef SEEK_PARAMETER
     for(auto &s : vAllServer){

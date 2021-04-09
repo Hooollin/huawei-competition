@@ -45,7 +45,7 @@ const double migrate_changeData = 9000;
 
 //dp策略填充机器量
 
-const int dp_machineNumber = 70;
+const int dp_machineNumber = 20;
 
 //前一天购买服务器量
 
@@ -59,13 +59,13 @@ int optimized_migrate(int today, int T,int totalOperation);
 
 int optimized_migrate(int today, int T, set<int> &idx, int totalOperation);
 
-int fromto_migrate(int today, int T, set<int> &fromIdx, set<int> toIdx, int totalOperation);
+int fromto_migrate(int today, int T, set<int> &fromIdx, set<int> &toIdx, int totalOperation);
 
 void migrate(int today,int T,int opNum,int prePurchase);
 
 int dp_migrate(int today,int T,int totalOperation);
 
-void small_virtual_machine_migrate(int today,int T);
+int small_virtual_machine_migrate(int today, int T, int totalOperation);
 
 void clear_small_server_migrate(int today,int T,int totalOperation);
 
@@ -115,18 +115,18 @@ int getNextServerId(){
 }
 
 void general_strategy(){
-    buy_PriceWeight = 0.53;//按价格购买权重
-    buy_BalanceWeight = 0.59;//两个节点使用资源比例平衡参数
-    buy_LeftSpaceWeight = 0.25;        //剩余空间
+    buy_PriceWeight = 0.3;//按价格购买权重
+    buy_BalanceWeight = 0.2;//两个节点使用资源比例平衡参数
+    buy_LeftSpaceWeight = 0.0;        //剩余空间
     buy_PriceWithCapacityWeight = 0.99; //性价比
     buy_SmWeight = 0.07;//相似性购买
     // double DayWeight = 0.8;
 
     //放置权值(和为1)
     put_SelectWeight = 0.07;//碎片选择权重
-    put_NodeBlanceWeight = 0.91;//负载均衡参数
+    put_NodeBlanceWeight = 0.51;//负载均衡参数
     put_SimWeight = 0.05;//相似放置
-    put_BalanceWeight = 0.53;//两个节点使用资源比例平衡参数
+    put_BalanceWeight = 0.63;//两个节点使用资源比例平衡参数
     put_PriceWithCapacityWeight = 0.05;
     put_NearWeight = 0.0;//相近放置
 }
@@ -596,12 +596,11 @@ bool compareNode(Node nodeA, Node nodeB, VirtualMachine vm){
     }
     return nodeA.memoryRem > nodeB.memoryRem;
 }
-void small_virtual_machine_migrate(int today,int T){
+int small_virtual_machine_migrate(int today,int T, int totalOperation){
     // 在这一轮总共可以迁移的次数
 #ifdef DEBUG
     assert(mVmidToVirtualMachine.size() == VM_AMOUNT);
 #endif
-    int totalOperation = 3 * VM_AMOUNT / 100;
     // 存储所有server计算生成的函数值
     vector<double> choseFs;
     // vServers的下标，用于排序
@@ -628,7 +627,7 @@ void small_virtual_machine_migrate(int today,int T){
     }
     //需要迁移的虚拟机id
     vector<int> migrateVmid;
-    for(int i=0;i<sortedVirtualMachine.size();i++){
+    for(int i = 0; i < sortedVirtualMachine.size(); i++){
         for(int vmid : sortedVirtualMachine[i]){
             migrateVmid.push_back(vmid);
         }
@@ -643,8 +642,7 @@ void small_virtual_machine_migrate(int today,int T){
         int fromServerId = mVirtualMachineInServer[vmid].first;
         int i = serverPos[mServerIdVectorPos[fromServerId]];
 #ifdef DEBUG
-        assert(mVmidToVirtualMachine.find(vmid) !=
-                mVmidToVirtualMachine.end());
+        assert(mVmidToVirtualMachine.find(vmid) != mVmidToVirtualMachine.end());
 #endif
         //从碎片小的服务器往下找，直到第一个可以放下这个虚拟机的服务器
         while(last > i && totalOperation > 0){
@@ -676,7 +674,7 @@ void small_virtual_machine_migrate(int today,int T){
             }
         }
     }
-    return ;
+    return totalOperation;
 }
 
 void migrate_by_costperf(int today,int T){
@@ -822,7 +820,7 @@ int dp_migrate(int today,int T,int totalOperation){//返回最终迁移次数
 
     int migrateServerNum = dp_machineNumber;
     //获取小服务器进行dp迁移
-    for(int i=0;i<sortedServer.size();i++){
+    for(int i = sortedServer.size() - 1; i >= 0; i--){
         for(int serverId : sortedServer[i]){
             storeServerId.push_back(serverId);
             migrateServerNum --;
@@ -1388,6 +1386,7 @@ int optimized_migrate(int today, int T, set<int> &serverIdx, int totalOperation)
                 // choice可以放在哪个结点
                 int choice = canPut(vAllServer[toServerId], vm);
                 if(choice > 0 && !serverEmpty(vAllServer[toServerIdx])){
+                    //serverIdx.erase(toServerIdx);
                     if(vm.getSingle() && choice == BOTH){
                         if(compareNode(mServerIdToServer[toServerIdx].nodeA,mServerIdToServer[toServerId].nodeB,vm)) {
                             choice = A;
@@ -1591,6 +1590,16 @@ double getUsage(int serverIdx){
     return ((double)usedCore + usedMem) / (svr.core + svr.memory);
 }
 
+bool checkBalance(Server &server){
+    int totalCore = server.core, totalMem = server.memory;
+    int leftACore = server.nodeA.coreRem, leftBCore = server.nodeB.coreRem;
+    int leftAMem = server.nodeA.memoryRem, leftBMem = server.nodeB.memoryRem;
+    if(abs(leftACore - leftBCore) * 3 >= totalCore || abs(leftAMem - leftBMem) * 3 >= totalMem){
+        return false;
+    }
+    return true;
+}
+
 void solve(int startDay, int endDay, int T){
     int today = startDay;
 #ifdef DEBUG
@@ -1598,7 +1607,11 @@ void solve(int startDay, int endDay, int T){
     cout << today << " " << vAllOperation[today].size() << endl;
 #endif
 #endif
-    general_strategy();
+    if(startDay < 20){
+        big_server_strategy();
+    }else{
+        general_strategy();
+    }
     // 顺序遍历每次操作
     //migrate(today,T,vOperation.size(),preDayPurchase);
     //migrated.clear();
@@ -1608,22 +1621,49 @@ void solve(int startDay, int endDay, int T){
     //cout << fromIdxs.size() << " " << toIdxs.size() << endl;
     int totalMigration =  3 * VM_AMOUNT / 100;
     int remMigration = totalMigration;
-    double usedLimit = 0.5;
-    for(int i = 0; i < vAllServer.size(); i++){
-        idxs.insert(i);
-    }
-    remMigration = optimized_migrate(today, T, idxs, remMigration);
+    //double usedLimit = 0.6;
+    //for(int i = 0; i < vAllServer.size(); i++){
+    //    idxs.insert(i);
+    //}
+    ////int last = remMigration;
+    //remMigration = optimized_migrate(today, T, idxs, remMigration);
+    //cout << "migration size: " << last - remMigration << " ";
+    //last = remMigration;
+    //remMigration = small_virtual_machine_migrate(today, T, remMigration);
+    //cout << last - remMigration << " ";
+//    last = remMigration;
+//    remMigration = optimized_migrate(today, T, idxs, remMigration);
+//    cout << last - remMigration << " ";
+//    last = remMigration;
+//    remMigration = small_virtual_machine_migrate(today, T, remMigration);
+//    cout << last - remMigration << " ";
+//    last = remMigration;
+// 
+    //remMigration = optimized_migrate(today, T, idxs, remMigration);
     //cout << "rem mi:"<< remMigration << endl;
+//    remMigration = small_virtual_machine_migrate(today, T, remMigration);
+//    remMigration = optimized_migrate(today, T, idxs, remMigration);
     for(int i = 0; i < vAllServer.size(); i++){
-        //int vmamount = mServerHasVirtualMachine[i].size();
-        double usage = getUsage(i);
-        if(usage > usedLimit){
-            toIdxs.insert(i);
-        }else{
+        if(!checkBalance(vAllServer[i])){
             fromIdxs.insert(i);
+        }else{
+            toIdxs.insert(i);
         }
+//        int vmamount = mServerHasVirtualMachine[i].size();
+//        double usage = getUsage(i);
+//        if(usage > usedLimit){
+//            toIdxs.insert(i);
+//        }else{
+//            fromIdxs.insert(i);
+//        }
     }
+    //remMigration = fromto_migrate(today, T, fromIdxs, toIdxs, remMigration);
+    //remMigration = optimized_migrate(today, T, toIdxs, remMigration);
+//    remMigration = optimized_migrate(today, T, fromIdxs, remMigration);
 //    remMigration = fromto_migrate(today, T, fromIdxs, toIdxs, remMigration);
+//    remMigration = optimized_migrate(today, T, idxs, remMigration);
+//    remMigration = optimized_migrate(today, T, toIdxs, remMigration);
+
 //    //cout << remMigration << " ";
 //    remMigration = optimized_migrate(today, T, idxs, remMigration);
 //    remMigration = optimized_migrate(today, T, toIdxs, remMigration);
