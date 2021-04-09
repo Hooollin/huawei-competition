@@ -15,12 +15,11 @@
 #include "./interaction.h"
 
 //购买权重（和为1）
-
-double buy_PriceWeight = 0.53;//按价格购买权重
-double buy_BalanceWeight = 0.59;//两个节点使用资源比例平衡参数
+double buy_PriceWeight = 0.3;//按价格购买权重
+double buy_BalanceWeight = 0.3;//两个节点使用资源比例平衡参数
 double buy_LeftSpaceWeight = 0.25;        //剩余空间
-double buy_PriceWithCapacityWeight = 0.99; //性价比
-double buy_SmWeight = 0.07;//相似性购买
+double buy_PriceWithCapacityWeight = 0.4; //性价比
+double buy_SmWeight = 0.00;//相似性购买
 // double DayWeight = 0.8;
 
 //放置权值(和为1)
@@ -42,8 +41,12 @@ const double change_buyWeight = 1.0;
 const double migrate_changeData = 9000;
 
 //dp策略填充机器量
-
 const int dp_machineNumber = 70;
+
+int Kday_need_core = 0, Kday_need_memory = 0;
+int today_need_core = 0, today_need_memory = 0;
+int DAY_MAX_CORE = 0, DAY_MAX_MEMORY = 0;
+
 
 //前一天购买服务器量
 
@@ -64,9 +67,9 @@ void small_virtual_machine_migrate(int today,int T);
 void clear_small_server_migrate(int today,int T,int totalOperation);
 
 // purchase
-pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T);
+pair<int,int> makePurchase(int todayCore, int todayMemory, VirtualMachineModel vmd, int today, int T);
 
-pair<int,int> makePurchase1(VirtualMachineModel vmd, int today, int T);
+pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel vmd, int today, int T);
 
 pair<int,int> makePurchase2(VirtualMachineModel vmd, int today, int T);
 
@@ -81,7 +84,7 @@ pair<double,int> selectServerCal(int today, int T, Server &currServer, VirtualMa
 
 void putVirtualMachineToServer(VirtualMachineModel vmd, int vmid, pair<int,int> serverAndNode);
 
-void allocateServer(OP addop, int today, int T);
+void allocateServer(OP addop, int todayCore, int todayMemory, int today, int T);
 
 void releaseRes(OP delop);
 
@@ -295,12 +298,12 @@ bool canBuy(ServerModel sm, int neededCore, int neededMem){
     return sm.core >= neededCore && sm.memory >= neededMem;
 }
 
-pair<int,int> makePurchase(VirtualMachineModel vmd, int today, int T){
-    if(today < T * change_buyWeight) return makePurchase1(vmd,today,T);
+pair<int,int> makePurchase(int todayCore, int todayMemory, VirtualMachineModel vmd, int today, int T){
+    if(today < T * change_buyWeight) return makePurchase1(todayCore, todayMemory, vmd,today,T);
     else return makePurchase2(vmd,today,T);
 }
 
-pair<int,int> makePurchase1(VirtualMachineModel vmd, int today, int T){
+pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel vmd, int today, int T){
     int newServerId = getNextServerId();
     //当前虚拟机需要的core和内存大小
     int neededCore = vmd.core, neededMem = vmd.memory;
@@ -308,6 +311,7 @@ pair<int,int> makePurchase1(VirtualMachineModel vmd, int today, int T){
         neededCore *= 2;
         neededMem *= 2;
     }
+    //cout << "needed core, needed memory: " << todayCore << " " << todayMemory << " " << neededCore << " " << neededMem << endl;
     double maxP = -1,minP = 0x3f3f3f3f;
     double maxC = -1,minC = 0x3f3f3f3f;
     double maxSm = -1, minSm = 0x3f3f3f3f;
@@ -330,8 +334,7 @@ pair<int,int> makePurchase1(VirtualMachineModel vmd, int today, int T){
             PriceC[i] = 1.0 * (devicePrice + dayPrice) / totalMem +
                 1.0 * (devicePrice + dayPrice) / totalCore;
             Near[i]   = abs(1. * totalCore - neededCore) + abs(1. * totalMem - neededMem);
-            Sm[i]     = abs((1. * MEAN_VM_CORE / MEAN_VM_MEMORY) -
-                    (1. * totalCore / totalMem));
+            Sm[i]     = abs((1. * MEAN_VM_CORE / MEAN_VM_MEMORY) - (1. * totalCore / totalMem));
 
             maxP = max(maxP, PriceF[i]), minP = min(minP, PriceF[i]);
             maxC = max(maxC, PriceC[i]), minC = min(minC, PriceC[i]);
@@ -341,10 +344,16 @@ pair<int,int> makePurchase1(VirtualMachineModel vmd, int today, int T){
     }
 
     int k = -1;
-    double balanceF,spaceF,newPriceF,choseF, newPriceC, newSm, newNear;
+    double balanceF,spaceF,newPriceF,choseF, newPriceC, newSm, newNear, needF;
+
+    needF = -((double)todayCore + todayMemory) / (DAY_MAX_CORE + DAY_MAX_MEMORY);
+    if(todayCore < Kday_need_core - todayCore && todayMemory < Kday_need_memory - todayMemory && todayCore > 0 && todayMemory > 0){
+            needF = ((double)todayCore + todayMemory) / (DAY_MAX_CORE + DAY_MAX_MEMORY);
+    }
+    //cout << "needF: " << needF << endl;
     double maxn = -1;
     for (int i = 0; i < vServerModel.size(); i++) {
-        ServerModel p = vServerModel[i];
+        ServerModel &p = vServerModel[i];
         if (canBuy(p, neededCore, neededMem)) {
             leftCore = p.core - vmd.core;
             leftMem = p.memory - vmd.memory;
@@ -361,16 +370,15 @@ pair<int,int> makePurchase1(VirtualMachineModel vmd, int today, int T){
             }
 
             balanceF = 1 - abs((1.0 * leftNodeCore / totalNodeCore) - (1.0 * leftNodeMem / totalNodeMem));
-
-            spaceF = (1.0 * leftCore + leftMem) / MAXSOURCE;
+            spaceF = (1.0 * leftCore + leftMem) / MAXSOURCE * (1 - (double)today / T);
             newPriceF = 1 - (PriceF[i] - minP) / (maxP - minP);
-            newPriceC = 1 - (PriceC[i] - minC) / (maxC - minC);
+            newPriceC = 1 - (PriceC[i] - minC) / (maxC - minC) * (1 - (double)today / T);
             newSm = 1 - (Sm[i] - minSm) / (maxSm - minSm);
             newNear = 1 - (Near[i] - minNear) / (maxNear - minNear);
 
             choseF = buy_PriceWeight * newPriceF + buy_BalanceWeight * balanceF +
                 buy_LeftSpaceWeight * spaceF +
-                buy_PriceWithCapacityWeight * newPriceC + newSm * buy_SmWeight;
+                buy_PriceWithCapacityWeight * newPriceC + newSm * buy_SmWeight + needF * ((double)p.core + p.memory) / MAXSOURCE;
 
             if (maxn < choseF)
                 k = i, maxn = choseF;
@@ -487,8 +495,7 @@ void migrateVirtualMachineToServer(int vmid, pair<int, int> serverAndNode){
             vmid});
 }
 
-
-void allocateServer(OP addop, int today, int T){
+void allocateServer(OP addop, int todayCore, int todayMemory, int today, int T){
     int vmid = addop.id;
     VM_AMOUNT += 1;
     // 需要新增虚拟机的型号
@@ -496,7 +503,7 @@ void allocateServer(OP addop, int today, int T){
     //新增的虚拟机实例
     pair<int,int> serverAndNode = selectServer(today, T, vmd);
     if(serverAndNode.first == -1){       // 没有合适的服务器，需要新购买服务器
-        serverAndNode = makePurchase(vmd, today, T);
+        serverAndNode = makePurchase(todayCore, todayMemory, vmd, today, T);
     }
 
     VirtualMachine vm(addop.machineType, vmid, vmd.core, vmd.memory, vmd.single);
@@ -1045,7 +1052,7 @@ int dp_migrate(int today,int T,int totalOperation){//返回最终迁移次数
     return totalOperation;
 }
 
-int optimized_migrate(int today,int T,int totalOperation){
+int optimized_migrate(int today, int T, int totalOperation){
     // 在这一轮总共可以迁移的次数
 #ifdef DEBUG
     assert(mVmidToVirtualMachine.size() == VM_AMOUNT);
@@ -1137,7 +1144,6 @@ int optimized_migrate(int today,int T,int totalOperation){
     return totalOperation;
 }
 void clear_small_server_migrate(int today,int T,int totalOperation){
-
     //按照服务器小为第一优先级，虚拟机少为第二优先级，腾出服务器空间
     vector<int> serverIdsq;//处理的服务器Id序列
 
@@ -1207,26 +1213,44 @@ void solve(int startDay, int endDay, int T){
 #endif
     // 顺序遍历每次操作
     //migrate(today,T,vOperation.size(),preDayPurchase);
+    int todaycore = mDayToCoreAndMemory[today].first, todaymemory = mDayToCoreAndMemory[today].second; 
+    //cout << "today core, today memory: "<< todaycore << " " << todaymemory << endl;
+    //cout << "kday core, kday memory: "<< Kday_need_core << " " << Kday_need_memory << endl;
+
     int totalMigration = 3 * VM_AMOUNT / 100;
-    int last = totalMigration;
-    while(true){
-        int now = optimized_migrate(today, T, totalMigration);
-        if(now == last){
-            break;
-        }
-        last = now;
-    }
+    optimized_migrate(today, T, totalMigration);
     //migrate();
+    set<int> todayaddvmid;   
+    int bothCount = 0;
     for (auto &op : vAllOperation[today]) {
+        int vmid = op.id;
+        VirtualMachineModel &vmd = mVmidToVirtualMachineModel[vmid];
+        int usedCore = vmd.core, usedMemory = vmd.memory;
         switch (op.opType) {
             case ADD:
-                allocateServer(op, today, T);
+                todayaddvmid.insert(vmid);
+                if(sDeletedVmidInKDay.find(vmid) != sDeletedVmidInKDay.end()){
+                    //cout << "added and deleted in K days" << endl;
+                }
+                if(!vmd.single){
+                    bothCount += 1;
+                }
+                allocateServer(op, todaymemory, todaymemory, today, T);
+                Kday_need_core -= usedCore;
+                Kday_need_memory -= usedMemory;
+                todaycore -= usedCore;
+                todaymemory -= usedMemory;
                 break;
             case DEL:
+                Kday_need_core += usedCore;
+                Kday_need_memory += usedMemory;
+                todaycore += usedCore;
+                todaymemory += usedMemory;
                 releaseRes(op);
                 break;
         }
     }
+    //cout << "all, both: " << vAllOperation[today].size() << " " << bothCount << endl;
 #ifdef DEBUG
     for(Server p : vAllServer){
         if(p.nodeA.coreUsed > 0 || p.nodeB.coreUsed > 0 || p.nodeA.memoryUsed > 0 || p.nodeB.memoryUsed > 0){

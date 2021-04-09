@@ -1,4 +1,3 @@
-
 #pragma once
 #include <vector>
 #include <string>
@@ -34,7 +33,9 @@ unordered_map<int, set<pair<int, int>>> mServerHasVirtualMachine;
 vector<Server> vAllServer;                    //所有已经创建的服务器
 unordered_map<int, Server> mServerIdToServer; //服务器编号到服务器的映射
 unordered_map<int, int> mServerIdVectorPos;    //服务器编号到vector下标的映射
-
+unordered_map<int, pair<int, int>> mDayToCoreAndMemory; //某一天需要到核心数和内存数
+unordered_map<int, VirtualMachineModel> mVmidToVirtualMachineModel; // vmid到vmd
+unordered_set<int> sDeletedVmidInKDay; //在k天内被删除的vmid
 
 //输出数据
 vector<string> vMigration;

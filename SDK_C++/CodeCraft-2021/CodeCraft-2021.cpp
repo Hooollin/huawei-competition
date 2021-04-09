@@ -88,6 +88,7 @@ int main(int argc, char *argv[])
     int l = 1, r = 1;
     while(l <= T){
         while(r - l + 1 <= K){
+            int core = 0, memory = 0;
             int R;
             cin >> R;
             cin.ignore();
@@ -95,6 +96,24 @@ int main(int argc, char *argv[])
             while(R-- > 0){
                 readOperation();
             }
+            for(auto &op : vOperation){
+                if(op.opType == ADD){
+                    VirtualMachineModel &vmd = mTypeToVirtualMachineModel[op.machineType];
+                    core += vmd.core;
+                    memory += vmd.memory;
+                    mVmidToVirtualMachineModel[op.id] = vmd;
+                }else{
+                    VirtualMachineModel &vmd = mVmidToVirtualMachineModel[op.id];
+                    core -= vmd.core;
+                    memory -= vmd.memory;
+                    sDeletedVmidInKDay.insert(op.id);
+                }
+            }
+            mDayToCoreAndMemory[r] = {core, memory};
+            Kday_need_core += core;
+            Kday_need_memory += memory;
+            DAY_MAX_CORE = max(DAY_MAX_CORE, core);
+            DAY_MAX_MEMORY = max(DAY_MAX_MEMORY, core);
             vAllOperation.push_back(vOperation);
             r += 1;
         }
