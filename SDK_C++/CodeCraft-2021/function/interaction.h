@@ -1,5 +1,7 @@
 #pragma once
 
+#define DEBUG
+//#define CHECKUSAGE
 
 #include <iostream>
 #include <vector>
@@ -249,17 +251,16 @@ void  statiInformation(){
     cout << "M: " << vVirtualMachineModel.size() << endl;
     cout << "add count: " << addcount << endl;
     cout << "del count: " << delcount << endl;
-    cout << "vm count: " << vmcount << endl;
+    cout << "migrate count: " << vmcount << endl;
     int unfilledSize = 0;
     for (auto &s : vAllServer) {
-        //cout << s.tostring() << endl;
       totalPrice += s.getDeviceCost();
       if (!checkServer(s)) {
         cout << s.tostring() << endl;
         return ;
       }
       if (!checkUsage(s)) {
-        //cout << s.tostring() << endl;
+        // cout << s.tostring() << endl;
         unfilledSize += 1;
       }
     }

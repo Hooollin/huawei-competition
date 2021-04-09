@@ -1,6 +1,5 @@
-
 #pragma once
-
+#include <vector>
 #include <string>
 #include <set>
 #include <unordered_map>
@@ -14,7 +13,7 @@
 
 using namespace std;
 
-
+vector<vector<OP>> vAllOperation; // 所有操作序列的数据
 unordered_map<string, ServerModel> mTypeToServerModel; // 所有服务器型号； key: type -> value: 服务器型号
 unordered_map<string, VirtualMachineModel> mTypeToVirtualMachineModel; // 所有虚拟机型号； key: type -> value:
 
@@ -35,9 +34,13 @@ vector<Server> vAllServer;                    //所有已经创建的服务器
 unordered_map<int, Server> mServerIdToServer; //服务器编号到服务器的映射
 unordered_map<int, int> mServerIdVectorPos;    //服务器编号到vector下标的映射
 
+
 //输出数据
 vector<string> vMigration;
 vector<pair<int, int>> vDeployment;
 vector<int> vPurchasedServer;
 
 vector<OP> vOperation;
+
+//dp迁移相关
+unordered_set<int> dpMigrateServerId; //可能会被dp迁移的serverid
