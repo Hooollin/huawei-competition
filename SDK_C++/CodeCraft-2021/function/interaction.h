@@ -260,7 +260,7 @@ void  statiInformation(){
         return ;
       }
       if (!checkUsage(s)) {
-        // cout << s.tostring() << endl;
+        cout << s.tostring() << endl;
         unfilledSize += 1;
       }
     }
