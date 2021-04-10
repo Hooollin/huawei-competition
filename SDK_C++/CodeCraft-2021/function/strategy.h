@@ -36,16 +36,16 @@ double migrate_chipWeight = 1.0;//碎片选择权重
 double migrate_balanceWeight = 0;//平衡权重
 
 //策略改变的天数权值
-double change_buyWeight = 0.5;
+const double change_buyWeight = 0.0;
 
 //大服务器空间大小比例
-double bigServer = 0.8;
+const double bigServer = 0.8;
 
 //改变迁移策略的数据量
 const double migrate_changeData = 9000;
 
 //dp迁移时按比例缩小core和mem的量
-const int dp_divNum = 10;
+const int dp_divNum = 1;
 
 // work
 void solve(int startDay, int endDay, int T);
@@ -796,10 +796,9 @@ void migrate(int today,int T,int K,int flag){
         assert(mVmidToVirtualMachine.size() == VM_AMOUNT);
     }
 #endif
-    int dpOperation = VM_AMOUNT * 100;
-    dp_migrate(today,T,K,dpOperation);
-    int leftOperation = VM_AMOUNT * 3 / 100;
-    optimized_migrate(today,T,leftOperation);
+    int allOperation = VM_AMOUNT * 3 / 100;
+    int leftOperation = optimized_migrate(today,T,allOperation);
+    if(flag >= 0) dp_migrate(today,T,K,leftOperation);
 }
 
 inline int getServerChip(Server &server){
@@ -832,7 +831,7 @@ void dpPreDeal(int startDay,int endDay,vector<int> &serversq,vector<deque<int> >
     }
     set<pair<int,int> > bigAndServerId;
     for(int serverId : dpMigrateServerId){
-        bigAndServerId.insert(make_pair(mServerIdToServer[serverId].getCore() + mServerIdToServer[serverId].getMemory(),serverId));
+        bigAndServerId.insert(make_pair( - mServerIdToServer[serverId].getCore() - mServerIdToServer[serverId].getMemory(),serverId));
     }
     for(pair<int,int> p : bigAndServerId){
         serversq.push_back(p.second);
@@ -961,6 +960,7 @@ int dp_migrate(int today,int T,int K,int totalOperation){//返回最终迁移次
         //开始做迁移 先迁出去，再迁进来。优先先迁出去小的，迁进来大的
         int i = 0;//迁移出去的migrateout 下标
         bool flag = true;//迁移标记，若一轮都没有任何迁移发生，则跳出
+        fragments.erase(make_pair(getServerChip(server),serverId));
         map<int,int>::iterator migrateit = migrateNum.begin(); //迁移进来的Num迭代器
         while(totalOperation > 0 && (i < migrateOut.size() || migrateit != migrateNum.end()) && flag == true){
             flag = false;
@@ -987,12 +987,10 @@ int dp_migrate(int today,int T,int K,int totalOperation){//返回最终迁移次
                 }
                 vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[toServerId],choice));
                 //更新fragment
-                fragments.erase(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
                 fragments.erase(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
                 // 迁移到新的服务器上
                 migrateVirtualMachineToServer(vmid, {toServerId, choice});
                 //更新fragment
-                fragments.insert(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
                 fragments.insert(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
                 //更新数据结构
                 mServerHasVirtualMachine[fromServerId].erase({vm.getCore() + vm.getMemory(), vmid});
@@ -1018,9 +1016,14 @@ int dp_migrate(int today,int T,int K,int totalOperation){//返回最终迁移次
                         break;//两个单节点虚拟机无法同时迁入，跳出
                     migrateNum[pos] -= 2;
                     virtualMachineNum[pos] -= 1;
-
+#ifdef DEBUG
+                    assert(!sortedVM[pos].empty());
+#endif // DEBUG
                     int vmid = sortedVM[pos].front();
                     sortedVM[pos].pop_front();
+#ifdef DEBUG
+                    assert(mVmidToVirtualMachine.find(vmid) != mVmidToVirtualMachine.end());
+#endif // DEBUG
                     VirtualMachine vm = mVmidToVirtualMachine[vmid];
                     pair<int,int> ServerAndNode = mVirtualMachineInServer[vmid];
                     int fromServerId = ServerAndNode.first;
@@ -1029,17 +1032,20 @@ int dp_migrate(int today,int T,int K,int totalOperation){//返回最终迁移次
                     vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[toServerId],choice));
                     //更新fragment
                     fragments.erase(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
-                    fragments.erase(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
                     // 迁移到新的服务器上
                     migrateVirtualMachineToServer(vmid, {toServerId, choice});
                     //更新fragment
                     fragments.insert(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
-                    fragments.insert(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
                     //更新数据结构
                     mServerHasVirtualMachine[fromServerId].erase({vm.getCore() + vm.getMemory(), vmid});
-
+#ifdef DEBUG
+                    assert(!sortedVM[pos].empty());
+#endif // DEBUG
                     vmid = sortedVM[pos].front();
                     sortedVM[pos].pop_front();
+#ifdef DEBUG
+                    assert(mVmidToVirtualMachine.find(vmid) != mVmidToVirtualMachine.end());
+#endif // DEBUG
                     vm = mVmidToVirtualMachine[vmid];
                     ServerAndNode = mVirtualMachineInServer[vmid];
                     fromServerId = ServerAndNode.first;
@@ -1048,12 +1054,10 @@ int dp_migrate(int today,int T,int K,int totalOperation){//返回最终迁移次
                     vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[toServerId],choice));
                     //更新fragment
                     fragments.erase(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
-                    fragments.erase(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
                     // 迁移到新的服务器上
                     migrateVirtualMachineToServer(vmid, {toServerId, choice});
                     //更新fragment
                     fragments.insert(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
-                    fragments.insert(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
                     //更新数据结构
                     mServerHasVirtualMachine[fromServerId].erase({vm.getCore() + vm.getMemory(), vmid});
 
@@ -1068,9 +1072,14 @@ int dp_migrate(int today,int T,int K,int totalOperation){//返回最终迁移次
                         break;//双节点虚拟机无法迁入，跳出
                     migrateNum[pos] --;
                     virtualMachineNum[pos] -= 1;
-
+#ifdef DEBUG
+                assert(!sortedVM[pos].empty());
+#endif // DEBUG
                     int vmid = sortedVM[pos].front();
                     sortedVM[pos].pop_front();
+#ifdef DEBUG
+                assert(mVmidToVirtualMachine.find(vmid) != mVmidToVirtualMachine.end());
+#endif // DEBUG
                     VirtualMachine vm = mVmidToVirtualMachine[vmid];
                     pair<int,int> ServerAndNode = mVirtualMachineInServer[vmid];
                     int fromServerId = ServerAndNode.first;
@@ -1079,12 +1088,10 @@ int dp_migrate(int today,int T,int K,int totalOperation){//返回最终迁移次
                     vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[toServerId],choice));
                     //更新fragment
                     fragments.erase(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
-                    fragments.erase(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
                     // 迁移到新的服务器上
                     migrateVirtualMachineToServer(vmid, {toServerId, choice});
                     //更新fragment
                     fragments.insert(make_pair(getServerChip(mServerIdToServer[fromServerId]),fromServerId));
-                    fragments.insert(make_pair(getServerChip(mServerIdToServer[toServerId]),toServerId));
                     //更新数据结构
                     mServerHasVirtualMachine[fromServerId].erase({vm.getCore() + vm.getMemory(), vmid});
                     //标记为成功迁移过
@@ -1262,8 +1269,19 @@ void solve(int startDay, int endDay, int T){
 #endif
 #endif
     //迁移
-    int totalOperation = VM_AMOUNT * 2 / 3;
-    optimized_migrate(today,T,totalOperation);
+    int flag = -1;
+    for(int i=startDay;i<startDay + 3 && i < endDay;i++){
+        if(vAllOperation[i].size() >= migrate_changeData){
+            flag = i;
+        }
+    }
+    if(flag == startDay + 2){
+        dpMigrateServerId.clear();
+        for(Server &server : vAllServer){
+            dpMigrateServerId.insert(server.id);
+        }
+    }
+    migrate(today,T,endDay - startDay,flag);
     // 顺序遍历每次操作
     for (auto &op : vAllOperation[today]) {
         switch (op.opType) {
@@ -1273,6 +1291,11 @@ void solve(int startDay, int endDay, int T){
             case DEL:
                 releaseRes(op);
                 break;
+        }
+    }
+    if(flag >= 0){
+        for(int serverId : vPurchasedServer){
+            dpMigrateServerId.insert(serverId);
         }
     }
 #ifdef DEBUG

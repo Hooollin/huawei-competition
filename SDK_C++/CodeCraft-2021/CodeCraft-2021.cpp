@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
         VirtualMachineModeltoPos[p.type] = i;
     }
 
-        //将虚拟机模型按照大小排序
+        //将服务器模型按照大小排序
     sort(vServerModel.begin(),vServerModel.end(),[&](const ServerModel &a,const ServerModel &b){
         return a.core + a.memory < b.core + b.memory;
          });
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     vAllOperation.push_back({});
     int l = 1, r = 1;
     while(l <= T){
-        while(r - l + 1 <= K){
+        while(r - l + 1 <= K && r <= T){
             int R;
             cin >> R;
             cin.ignore();
@@ -100,6 +100,7 @@ int main(int argc, char *argv[])
             vAllOperation.push_back(vOperation);
             r += 1;
         }
+        initializeOutputVector();
         solve(l, r, T);
         l += 1;
     }

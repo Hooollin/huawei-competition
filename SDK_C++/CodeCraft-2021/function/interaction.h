@@ -1,8 +1,5 @@
 #pragma once
 
-#define DEBUG
-//#define CHECKUSAGE
-
 #include <iostream>
 #include <vector>
 #include <map>
@@ -41,6 +38,7 @@ int MAXSOURCE = 0;
 // initialization
 void initializeOperationVector();
 
+void initializeOutputVector();
 //output
 int getNextGlobalServerId();
 
@@ -168,6 +166,8 @@ int getNextGlobalServerId(){
 void initializeOperationVector(){
   vOperation.clear();
   vOperation.resize(0);
+}
+void initializeOutputVector(){
   vMigration.clear();
   vMigration.resize(0);
   vDeployment.clear();
@@ -175,7 +175,6 @@ void initializeOperationVector(){
   vPurchasedServer.clear();
   vPurchasedServer.resize(0);
 }
-
 string makeDeploymentOutput(int serverId, int node){
     string output;
     if(node == A){
