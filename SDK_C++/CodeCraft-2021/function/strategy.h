@@ -1490,12 +1490,12 @@ void getPreNotBalance(int today,int T){
         else if(ChipMem - ChipCore >= 0.1) CoreNotBalanceNum ++;
         if(abs(ChipCore - ChipMem) >= 0.1 )CoreNotBalanceChip += ChipCore,MemNotBalanceChip += ChipMem;
     }
-    double numdivide = 1.0 * CoreNotBalanceNum / MemNotBalanceNum;
+    double numdivide = 1.0 * (CoreNotBalanceNum + 1) / (MemNotBalanceNum + 1);
     if(numdivide < 1) numdivide = 1 / numdivide;
-    double chipdivide = CoreNotBalanceChip / MemNotBalanceChip;
+    double chipdivide = (CoreNotBalanceChip + 0.01) / (MemNotBalanceChip + 0.01);
     if(chipdivide < 1) chipdivide = 1 / chipdivide;
-    if(numdivide > chipdivide) preNotBalance = 1.0 * CoreNotBalanceNum / MemNotBalanceNum;
-    else preNotBalance = CoreNotBalanceChip / MemNotBalanceChip;
+    if(numdivide > chipdivide) preNotBalance = 1.0 * ( CoreNotBalanceNum + 1)/ (MemNotBalanceNum + 1);
+    else preNotBalance = (CoreNotBalanceChip + 0.01) / (MemNotBalanceChip + 0.01);
     return ;
 }
 
