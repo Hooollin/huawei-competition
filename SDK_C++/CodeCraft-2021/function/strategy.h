@@ -1489,8 +1489,8 @@ void solve(int startDay, int endDay, int T){
     // 顺序遍历每次操作
     //migrate(today,T,vOperation.size(),preDayPurchase);
     int todaycore = mDayToCoreAndMemory[today].first, todaymemory = mDayToCoreAndMemory[today].second; 
-    cout << "today core, today memory: "<< todaycore << " " << todaymemory << endl;
-    cout << "kday core, kday memory: "<< Kday_need_core << " " << Kday_need_memory << endl;
+    //cout << "today core, today memory: "<< todaycore << " " << todaymemory << endl;
+    //cout << "kday core, kday memory: "<< Kday_need_core << " " << Kday_need_memory << endl;
 
     int totalMigration = 3 * VM_AMOUNT / 100;
     int deletedCount = 0;
