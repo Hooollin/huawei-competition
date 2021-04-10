@@ -17,8 +17,6 @@ int main(int argc, char *argv[])
     put_SimWeight = atof(argv[8]);//相似放置
     put_PriceWithCapacityWeight = atof(argv[9]);
     put_BalanceWeight = atof(argv[10]);//两个节点使用资源比例平衡参数
-    change_buyWeight = atof(argv[11]);
-    bigServer = atof(argv[12]);
 #endif
     ios::sync_with_stdio(false);
     cin.tie(0);
@@ -55,7 +53,7 @@ int main(int argc, char *argv[])
         VirtualMachineModeltoPos[p.type] = i;
     }
 
-        //将服务器模型按照大小排序
+        //将虚拟机模型按照大小排序
     sort(vServerModel.begin(),vServerModel.end(),[&](const ServerModel &a,const ServerModel &b){
         return a.core + a.memory < b.core + b.memory;
          });
@@ -89,7 +87,8 @@ int main(int argc, char *argv[])
     vAllOperation.push_back({});
     int l = 1, r = 1;
     while(l <= T){
-        while(r - l + 1 <= K && r <= T){
+        while(r - l + 1 <= K){
+            int core = 0, memory = 0;
             int R;
             cin >> R;
             cin.ignore();
@@ -97,11 +96,27 @@ int main(int argc, char *argv[])
             while(R-- > 0){
                 readOperation();
             }
-            addDelVM(r,T);
+            for(auto &op : vOperation){
+                if(op.opType == ADD){
+                    VirtualMachineModel &vmd = mTypeToVirtualMachineModel[op.machineType];
+                    core += vmd.core;
+                    memory += vmd.memory;
+                    mVmidToVirtualMachineModel[op.id] = vmd;
+                }else{
+                    VirtualMachineModel &vmd = mVmidToVirtualMachineModel[op.id];
+                    core -= vmd.core;
+                    memory -= vmd.memory;
+                    mDeletedVmidInKDay[op.id] = r;
+                }
+            }
+            mDayToCoreAndMemory[r] = {core, memory};
+            Kday_need_core += core;
+            Kday_need_memory += memory;
+            DAY_MAX_CORE = max(DAY_MAX_CORE, core);
+            DAY_MAX_MEMORY = max(DAY_MAX_MEMORY, core);
             vAllOperation.push_back(vOperation);
             r += 1;
         }
-        initializeOutputVector();
         solve(l, r, T);
         l += 1;
     }

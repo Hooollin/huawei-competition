@@ -1,5 +1,8 @@
 #pragma once
 
+//#define DEBUG
+//#define CHECKUSAGE
+
 #include <iostream>
 #include <vector>
 #include <map>
@@ -38,11 +41,9 @@ int MAXSOURCE = 0;
 // initialization
 void initializeOperationVector();
 
-void initializeOutputVector();
 //output
 int getNextGlobalServerId();
 
-void get
 string makeDeploymentOutput(int serverId, int node);
 
 string makeMigrateOutput(int vmid,int serverId,int node);
@@ -58,9 +59,6 @@ void readOperation();
 
 //statiInformation
 void  statiInformation();
-
-//获取当天删除的虚拟机加入备选
-void addDelVM(int today,int T);
 
 // debug
 bool checkServer(Server &server);
@@ -170,8 +168,6 @@ int getNextGlobalServerId(){
 void initializeOperationVector(){
   vOperation.clear();
   vOperation.resize(0);
-}
-void initializeOutputVector(){
   vMigration.clear();
   vMigration.resize(0);
   vDeployment.clear();
@@ -179,6 +175,7 @@ void initializeOutputVector(){
   vPurchasedServer.clear();
   vPurchasedServer.resize(0);
 }
+
 string makeDeploymentOutput(int serverId, int node){
     string output;
     if(node == A){
@@ -254,7 +251,7 @@ void  statiInformation(){
     cout << "M: " << vVirtualMachineModel.size() << endl;
     cout << "add count: " << addcount << endl;
     cout << "del count: " << delcount << endl;
-    cout << "migrate count: " << vmcount << endl;
+    cout << "vm count: " << vmcount << endl;
     int unfilledSize = 0;
     for (auto &s : vAllServer) {
       totalPrice += s.getDeviceCost();
@@ -317,21 +314,4 @@ bool checkUsage(Server &server){
         return false;
     }
     return true;
-}
-
-inline int getVMCap(VirtualMachine &vm){
-    return vm.getCore() +  vm.getMemory();
-}
-inline int getVMModelCap(VirtualMachineModel &vmd){
-    return vmd.core +  vmd.memory;
-}
-
-void addDelVM(int today,int T){
-    for(OP p : vOperation){
-        if(p.opType == DEL){
-            pair< pair<int,int> ,int > tmp = make_pair( make_pair(T - today , getVMModelCap(mTypeToVirtualMachineModel[p.machineType])),p.id);
-            VMbydelOrder.insert(tmp);
-        }
-    }
-    return ;
 }

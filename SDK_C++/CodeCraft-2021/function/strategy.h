@@ -13,13 +13,15 @@
 #include <unordered_map>
 
 #include "./interaction.h"
-
+//814 975
+//867 978
 //购买权重（和为1）
 double buy_PriceWeight = 0.53;//按价格购买权重
 double buy_BalanceWeight = 0.59;//两个节点使用资源比例平衡参数
 double buy_LeftSpaceWeight = 0.25;        //剩余空间
 double buy_PriceWithCapacityWeight = 0.99; //性价比
 double buy_SmWeight = 0.07;//相似性购买
+double buy_CoreDivMemory = 0.6;//当天全部虚拟机core和mem比例权重
 // double DayWeight = 0.8;
 
 //放置权值(和为1)
@@ -47,6 +49,9 @@ int Kday_need_core = 0, Kday_need_memory = 0;
 int today_need_core = 0, today_need_memory = 0;
 int DAY_MAX_CORE = 0, DAY_MAX_MEMORY = 0;
 int DayLimit = 1;
+
+//当天全部虚拟机core和mem比例
+double todayCoreDivideMemory;
 
 
 //前一天购买服务器量
@@ -327,13 +332,14 @@ pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel 
     double maxC = -1,minC = 0x3f3f3f3f;
     double maxSm = -1, minSm = 0x3f3f3f3f;
     double maxNear = -1, minNear = 0x3f3f3f3f;
+    double maxDivide = -1,minDivide = 0x3f3f3f3f;
     int leftCore,leftMem,devicePrice,dayPrice,totalCore,totalMem,leftNodeCore,leftNodeMem,totalNodeCore,totalNodeMem;
 
     vector<double> PriceF(vServerModel.size(), -1);
     vector<double> PriceC(vServerModel.size(), -1);
     vector<double> Sm(vServerModel.size(), -1);
     vector<double> Near(vServerModel.size(), -1);
-
+    vector<double> Divide(vServerModel.size(), -1);
     for (int i = 0; i < vServerModel.size(); i++) {
         ServerModel p = vServerModel[i];
         if (canBuy(p, neededCore, neededMem)) {
@@ -346,16 +352,17 @@ pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel 
                 1.0 * (devicePrice + dayPrice) / totalCore;
             Near[i]   = abs(1. * totalCore - neededCore) + abs(1. * totalMem - neededMem);
             Sm[i]     = abs((1. * MEAN_VM_CORE / MEAN_VM_MEMORY) - (1. * totalCore / totalMem));
-
+            Divide[i] = abs(totalCore / totalMem - todayCoreDivideMemory);
             maxP = max(maxP, PriceF[i]), minP = min(minP, PriceF[i]);
             maxC = max(maxC, PriceC[i]), minC = min(minC, PriceC[i]);
             maxSm = max(maxSm, Sm[i]), minSm = min(minSm, Sm[i]);
             maxNear = max(maxNear, Near[i]), minNear = min(minNear, Near[i]);
+            maxDivide = max(maxDivide,Divide[i]) ,minDivide = min(minDivide,Divide[i]);
         }
     }
 
     int k = -1;
-    double balanceF,spaceF,newPriceF,choseF, newPriceC, newSm, newNear, needF;
+    double balanceF,spaceF,newPriceF,choseF, newPriceC, newSm, newNear, needF,divideF;
 
     double maxn = -1;
     for (int i = 0; i < vServerModel.size(); i++) {
@@ -383,7 +390,8 @@ pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel 
             newPriceC = 1 - (PriceC[i] - minC) / (maxC - minC);
             newSm = 1 - (Sm[i] - minSm) / (maxSm - minSm);
             newNear = 1 - (Near[i] - minNear) / (maxNear - minNear);
-            choseF = buy_PriceWeight * newPriceF + buy_BalanceWeight * balanceF + buy_LeftSpaceWeight * spaceF + buy_PriceWithCapacityWeight * newPriceC + newSm * buy_SmWeight;
+            divideF = 1- (Divide[i] - minDivide) / (maxDivide - minDivide);
+            choseF = buy_PriceWeight * newPriceF + buy_BalanceWeight * balanceF + buy_LeftSpaceWeight * spaceF + buy_PriceWithCapacityWeight * newPriceC + newSm * buy_SmWeight + divideF * buy_CoreDivMemory;
             if (maxn < choseF)
                 k = i, maxn = choseF;
         }
@@ -1431,6 +1439,8 @@ void solve(int startDay, int endDay, int T){
     // 顺序遍历每次操作
     //migrate(today,T,vOperation.size(),preDayPurchase);
     int todaycore = mDayToCoreAndMemory[today].first, todaymemory = mDayToCoreAndMemory[today].second;
+    today_need_core = mDayToCoreAndMemory[today].first, today_need_memory = mDayToCoreAndMemory[today].second;
+    todayCoreDivideMemory = 1.0 * today_need_core / today_need_memory ;
     //cout << "today core, today memory: "<< todaycore << " " << todaymemory << endl;
     //cout << "kday core, kday memory: "<< Kday_need_core << " " << Kday_need_memory << endl;
 
@@ -1468,7 +1478,6 @@ void solve(int startDay, int endDay, int T){
                 if(!vmd.single){
                     bothCount += 1;
                 }
-                allocateServer(op, todaymemory, todaymemory, today, T);
                 Kday_need_core -= usedCore;
                 Kday_need_memory -= usedMemory;
                 todaycore -= usedCore;
@@ -1480,6 +1489,15 @@ void solve(int startDay, int endDay, int T){
                 Kday_need_memory += usedMemory;
                 todaycore += usedCore;
                 todaymemory += usedMemory;
+                break;
+        }
+    }
+    for (auto &op : vAllOperation[today]) {
+        switch (op.opType) {
+            case ADD:
+                allocateServer(op, todaymemory, todaymemory, today, T);
+                break;
+            case DEL:
                 releaseRes(op);
                 break;
         }
