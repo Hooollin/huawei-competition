@@ -97,6 +97,7 @@ int main(int argc, char *argv[])
             while(R-- > 0){
                 readOperation();
             }
+            addDelVM(r,T);
             vAllOperation.push_back(vOperation);
             r += 1;
         }

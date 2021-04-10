@@ -42,6 +42,7 @@ void initializeOutputVector();
 //output
 int getNextGlobalServerId();
 
+void get
 string makeDeploymentOutput(int serverId, int node);
 
 string makeMigrateOutput(int vmid,int serverId,int node);
@@ -57,6 +58,9 @@ void readOperation();
 
 //statiInformation
 void  statiInformation();
+
+//获取当天删除的虚拟机加入备选
+void addDelVM(int today,int T);
 
 // debug
 bool checkServer(Server &server);
@@ -313,4 +317,21 @@ bool checkUsage(Server &server){
         return false;
     }
     return true;
+}
+
+inline int getVMCap(VirtualMachine &vm){
+    return vm.getCore() +  vm.getMemory();
+}
+inline int getVMModelCap(VirtualMachineModel &vmd){
+    return vmd.core +  vmd.memory;
+}
+
+void addDelVM(int today,int T){
+    for(OP p : vOperation){
+        if(p.opType == DEL){
+            pair< pair<int,int> ,int > tmp = make_pair( make_pair(T - today , getVMModelCap(mTypeToVirtualMachineModel[p.machineType])),p.id);
+            VMbydelOrder.insert(tmp);
+        }
+    }
+    return ;
 }
