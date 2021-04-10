@@ -17,6 +17,9 @@ int main(int argc, char *argv[])
     put_SimWeight = atof(argv[8]);//相似放置
     put_PriceWithCapacityWeight = atof(argv[9]);
     put_BalanceWeight = atof(argv[10]);//两个节点使用资源比例平衡参数
+    kDayCoreDivideMemory = atof(argv[11]); ////k天全部虚拟机core和mem比例权重
+    todayCoreDivideMemory = atof(argv[12]);//当天全部虚拟机core和mem比例权重
+    buy_preNotBalance = atof(argv[13]);//当前不平衡服务器参数
 #endif
     ios::sync_with_stdio(false);
     cin.tie(0);

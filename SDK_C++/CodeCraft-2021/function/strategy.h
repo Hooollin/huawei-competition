@@ -22,6 +22,7 @@ double buy_PriceWithCapacityWeight = 0.99; //性价比
 double buy_SmWeight = 0.07;//相似性购买
 double buy_CoreDivMemory = 0.6;//当天全部虚拟机core和mem比例权重
 double buy_kDayCoreDivMemory = 0.6;//k天全部虚拟机core和mem比例权重
+double buy_preNotBalance = 0.6;//当前不平衡服务器参数
 // double DayWeight = 0.8;
 
 //放置权值(和为1)
@@ -53,7 +54,7 @@ int DayLimit = 1;
 //当天全部虚拟机core和mem比例
 double todayCoreDivideMemory;
 double kDayCoreDivideMemory;
-
+double preNotBalance = 1;
 
 //前一天购买服务器量
 
@@ -73,6 +74,7 @@ int small_virtual_machine_migrate(int today, int T, int totalOperation);
 
 int clear_small_server_migrate(int today,int T,int totalOperation);
 
+
 // purchase
 pair<int,int> makePurchase(int todayCore, int todayMemory, VirtualMachineModel vmd, int today, int T);
 
@@ -82,6 +84,7 @@ pair<int,int> makePurchase2(VirtualMachineModel vmd, int today, int T);
 
 int getNextServerId();
 
+void getPreNotBalance(int today,int T);
 // deployment
 pair<int,int> selectServer(int today, int T, VirtualMachineModel vmd);
 
@@ -335,6 +338,7 @@ pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel 
     double maxNear = -1, minNear = 0x3f3f3f3f;
     double maxDivide = -1,minDivide = 0x3f3f3f3f;
     double maxKDivide = -1,minKDivide = 0x3f3f3f3f;
+    double maxPreDivide = -1,minPreDivide = 0x3f3f3f3f;
     int leftCore,leftMem,devicePrice,dayPrice,totalCore,totalMem,leftNodeCore,leftNodeMem,totalNodeCore,totalNodeMem;
 
     vector<double> PriceF(vServerModel.size(), -1);
@@ -343,6 +347,7 @@ pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel 
     vector<double> Near(vServerModel.size(), -1);
     vector<double> Divide(vServerModel.size(), -1);
     vector<double> KDivide(vServerModel.size(), -1);
+    vector<double> PreDivide(vServerModel.size(), -1);
     for (int i = 0; i < vServerModel.size(); i++) {
         ServerModel p = vServerModel[i];
         if (canBuy(p, neededCore, neededMem)) {
@@ -354,20 +359,22 @@ pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel 
             PriceC[i] = 1.0 * (devicePrice + dayPrice) / totalMem +
                 1.0 * (devicePrice + dayPrice) / totalCore;
             Near[i]   = abs(1. * totalCore - neededCore) + abs(1. * totalMem - neededMem);
-            Sm[i]     = abs((1. * MEAN_VM_CORE / MEAN_VM_MEMORY) - (1. * totalCore / totalMem));
-            Divide[i] = abs(totalCore / totalMem - todayCoreDivideMemory);
-            KDivide[i] = abs(totalCore / totalMem - kDayCoreDivideMemory);
+            Sm[i]     = abs((1. * (MEAN_VM_CORE + 1)/ (MEAN_VM_MEMORY + 1)) - (1. * (totalCore + 1) / (totalMem + 1)));
+            Divide[i] = abs((totalCore + 1) / (totalMem + 1) - todayCoreDivideMemory);
+            KDivide[i] = abs((totalCore  + 1) / (totalMem  + 1) - kDayCoreDivideMemory);
+            PreDivide[i] = abs((totalCore  + 1) / (totalMem  + 1) - preNotBalance);
             maxP = max(maxP, PriceF[i]), minP = min(minP, PriceF[i]);
             maxC = max(maxC, PriceC[i]), minC = min(minC, PriceC[i]);
             maxSm = max(maxSm, Sm[i]), minSm = min(minSm, Sm[i]);
             maxNear = max(maxNear, Near[i]), minNear = min(minNear, Near[i]);
             maxDivide = max(maxDivide,Divide[i]) ,minDivide = min(minDivide,Divide[i]);
             maxKDivide = max(maxKDivide,KDivide[i]) ,minDivide = min(minKDivide,KDivide[i]);
+            maxPreDivide = max(maxPreDivide,PreDivide[i]),minPreDivide = min(minPreDivide,PreDivide[i]);
         }
     }
 
     int k = -1;
-    double balanceF,spaceF,newPriceF,choseF, newPriceC, newSm, newNear, needF,divideF,kdivideF;
+    double balanceF,spaceF,newPriceF,choseF, newPriceC, newSm, newNear, needF,divideF,kdivideF,predivideF;
 
     double maxn = -1;
     for (int i = 0; i < vServerModel.size(); i++) {
@@ -397,7 +404,8 @@ pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel 
             newNear = 1 - (Near[i] - minNear) / (maxNear - minNear);
             divideF = 1- (Divide[i] - minDivide) / (maxDivide - minDivide);
             kdivideF = 1- (KDivide[i] - minKDivide) / (maxKDivide - minKDivide);
-            choseF = buy_PriceWeight * newPriceF + buy_BalanceWeight * balanceF + buy_LeftSpaceWeight * spaceF + buy_PriceWithCapacityWeight * newPriceC + newSm * buy_SmWeight + divideF * buy_CoreDivMemory + kdivideF * buy_kDayCoreDivMemory;
+            predivideF = 1 - (PreDivide[i] - minPreDivide) / (maxPreDivide - minPreDivide);
+            choseF = buy_PriceWeight * newPriceF + buy_BalanceWeight * balanceF + buy_LeftSpaceWeight * spaceF + buy_PriceWithCapacityWeight * newPriceC + newSm * buy_SmWeight + divideF * buy_CoreDivMemory + kdivideF * buy_kDayCoreDivMemory + predivideF * buy_preNotBalance;
             if (maxn < choseF)
                 k = i, maxn = choseF;
         }
@@ -1434,6 +1442,32 @@ int optimized_migrate(int today, int T, int totalOperation, set<int> &migrated){
     }
     return totalOperation;
 }
+void getPreNotBalance(int today,int T){
+    if(today == 1){
+        preNotBalance = 1;
+        return ;
+    }
+    int CoreNotBalanceNum = 0,MemNotBalanceNum = 0;
+    double CoreNotBalanceChip = 0,MemNotBalanceChip = 0;
+    for(Server server : vAllServer){
+        int totalCore = server.getCore();
+        int totalMem = server.getMemory();
+        int leftCore = server.nodeA.coreRem + server.nodeB.coreRem;
+        int leftMem = server.nodeA.memoryRem + server.nodeB.memoryRem;
+        double ChipCore = 1.0 * (leftCore + 1) / (totalCore + 1);
+        double ChipMem = 1.0 * (leftMem + 1) / (totalMem + 1);
+        if(ChipCore - ChipMem >= 0.1) MemNotBalanceNum ++;
+        else if(ChipMem - ChipCore >= 0.1) CoreNotBalanceNum ++;
+        if(abs(ChipCore - ChipMem) >= 0.1 )CoreNotBalanceChip += ChipCore,MemNotBalanceChip += ChipMem;
+    }
+    double numdivide = 1.0 * CoreNotBalanceNum / MemNotBalanceNum;
+    if(numdivide < 1) numdivide = 1 / numdivide;
+    double chipdivide = CoreNotBalanceChip / MemNotBalanceChip;
+    if(chipdivide < 1) chipdivide = 1 / chipdivide;
+    if(numdivide > chipdivide) preNotBalance = 1.0 * CoreNotBalanceNum / MemNotBalanceNum;
+    else preNotBalance = CoreNotBalanceChip / MemNotBalanceChip;
+    return ;
+}
 
 void solve(int startDay, int endDay, int T){
     int today = startDay;
@@ -1442,15 +1476,14 @@ void solve(int startDay, int endDay, int T){
     cout << today << " " << vAllOperation[today].size() << endl;
 #endif
 #endif
-    // 顺序遍历每次操作
     //migrate(today,T,vOperation.size(),preDayPurchase);
     int todaycore = mDayToCoreAndMemory[today].first, todaymemory = mDayToCoreAndMemory[today].second;
     today_need_core = mDayToCoreAndMemory[today].first, today_need_memory = mDayToCoreAndMemory[today].second;
-    todayCoreDivideMemory = 1.0 * today_need_core / today_need_memory ;
-    kDayCoreDivideMemory = 1.0 * Kday_need_core / Kday_need_memory ;
+    todayCoreDivideMemory = 1.0 * (today_need_core + 1) / (today_need_memory  + 1);
+    kDayCoreDivideMemory = 1.0 * (Kday_need_core  + 1) / (Kday_need_memory + 1);
     //cout << "today core, today memory: "<< todaycore << " " << todaymemory << endl;
     //cout << "kday core, kday memory: "<< Kday_need_core << " " << Kday_need_memory << endl;
-
+    getPreNotBalance(today,T);
     int totalMigration = 3 * VM_AMOUNT / 100;
     int deletedCount = 0;
     for(auto &p : mDeletedVmidInKDay){
@@ -1458,6 +1491,7 @@ void solve(int startDay, int endDay, int T){
             deletedCount += 1;
         }
     }
+
     //clear_small_server_migrate(today, T, totalMigration);
     //remMigration = optimized_migrate(today, T, totalMigration);
     set<int> migrated;
