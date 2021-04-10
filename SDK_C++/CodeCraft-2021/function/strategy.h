@@ -13,8 +13,7 @@
 #include <unordered_map>
 
 #include "./interaction.h"
-//814 975
-//867 978
+
 //购买权重（和为1）
 double buy_PriceWeight = 0.53;//按价格购买权重
 double buy_BalanceWeight = 0.59;//两个节点使用资源比例平衡参数
@@ -22,6 +21,7 @@ double buy_LeftSpaceWeight = 0.25;        //剩余空间
 double buy_PriceWithCapacityWeight = 0.99; //性价比
 double buy_SmWeight = 0.07;//相似性购买
 double buy_CoreDivMemory = 0.6;//当天全部虚拟机core和mem比例权重
+double buy_kDayCoreDivMemory = 0.6;//k天全部虚拟机core和mem比例权重
 // double DayWeight = 0.8;
 
 //放置权值(和为1)
@@ -52,6 +52,7 @@ int DayLimit = 1;
 
 //当天全部虚拟机core和mem比例
 double todayCoreDivideMemory;
+double kDayCoreDivideMemory;
 
 
 //前一天购买服务器量
