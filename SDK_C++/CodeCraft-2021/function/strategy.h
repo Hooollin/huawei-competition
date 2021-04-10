@@ -334,6 +334,7 @@ pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel 
     double maxSm = -1, minSm = 0x3f3f3f3f;
     double maxNear = -1, minNear = 0x3f3f3f3f;
     double maxDivide = -1,minDivide = 0x3f3f3f3f;
+    double maxKDivide = -1,minKDivide = 0x3f3f3f3f;
     int leftCore,leftMem,devicePrice,dayPrice,totalCore,totalMem,leftNodeCore,leftNodeMem,totalNodeCore,totalNodeMem;
 
     vector<double> PriceF(vServerModel.size(), -1);
@@ -341,6 +342,7 @@ pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel 
     vector<double> Sm(vServerModel.size(), -1);
     vector<double> Near(vServerModel.size(), -1);
     vector<double> Divide(vServerModel.size(), -1);
+    vector<double> KDivide(vServerModel.size(), -1);
     for (int i = 0; i < vServerModel.size(); i++) {
         ServerModel p = vServerModel[i];
         if (canBuy(p, neededCore, neededMem)) {
@@ -354,16 +356,18 @@ pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel 
             Near[i]   = abs(1. * totalCore - neededCore) + abs(1. * totalMem - neededMem);
             Sm[i]     = abs((1. * MEAN_VM_CORE / MEAN_VM_MEMORY) - (1. * totalCore / totalMem));
             Divide[i] = abs(totalCore / totalMem - todayCoreDivideMemory);
+            KDivide[i] = abs(totalCore / totalMem - kDayCoreDivideMemory);
             maxP = max(maxP, PriceF[i]), minP = min(minP, PriceF[i]);
             maxC = max(maxC, PriceC[i]), minC = min(minC, PriceC[i]);
             maxSm = max(maxSm, Sm[i]), minSm = min(minSm, Sm[i]);
             maxNear = max(maxNear, Near[i]), minNear = min(minNear, Near[i]);
             maxDivide = max(maxDivide,Divide[i]) ,minDivide = min(minDivide,Divide[i]);
+            maxKDivide = max(maxKDivide,KDivide[i]) ,minDivide = min(minKDivide,KDivide[i]);
         }
     }
 
     int k = -1;
-    double balanceF,spaceF,newPriceF,choseF, newPriceC, newSm, newNear, needF,divideF;
+    double balanceF,spaceF,newPriceF,choseF, newPriceC, newSm, newNear, needF,divideF,kdivideF;
 
     double maxn = -1;
     for (int i = 0; i < vServerModel.size(); i++) {
@@ -392,7 +396,8 @@ pair<int,int> makePurchase1(int todayCore, int todayMemory, VirtualMachineModel 
             newSm = 1 - (Sm[i] - minSm) / (maxSm - minSm);
             newNear = 1 - (Near[i] - minNear) / (maxNear - minNear);
             divideF = 1- (Divide[i] - minDivide) / (maxDivide - minDivide);
-            choseF = buy_PriceWeight * newPriceF + buy_BalanceWeight * balanceF + buy_LeftSpaceWeight * spaceF + buy_PriceWithCapacityWeight * newPriceC + newSm * buy_SmWeight + divideF * buy_CoreDivMemory;
+            kdivideF = 1- (KDivide[i] - minKDivide) / (maxKDivide - minKDivide);
+            choseF = buy_PriceWeight * newPriceF + buy_BalanceWeight * balanceF + buy_LeftSpaceWeight * spaceF + buy_PriceWithCapacityWeight * newPriceC + newSm * buy_SmWeight + divideF * buy_CoreDivMemory + kdivideF * buy_kDayCoreDivMemory;
             if (maxn < choseF)
                 k = i, maxn = choseF;
         }
@@ -1442,6 +1447,7 @@ void solve(int startDay, int endDay, int T){
     int todaycore = mDayToCoreAndMemory[today].first, todaymemory = mDayToCoreAndMemory[today].second;
     today_need_core = mDayToCoreAndMemory[today].first, today_need_memory = mDayToCoreAndMemory[today].second;
     todayCoreDivideMemory = 1.0 * today_need_core / today_need_memory ;
+    kDayCoreDivideMemory = 1.0 * Kday_need_core / Kday_need_memory ;
     //cout << "today core, today memory: "<< todaycore << " " << todaymemory << endl;
     //cout << "kday core, kday memory: "<< Kday_need_core << " " << Kday_need_memory << endl;
 
