@@ -57,7 +57,7 @@ int preDayPurchase = -1;
 void solve(int startDay, int endDay, int T);
 
 // migrate
-int optimized_migrate(int today,int T,int totalOperation, set<int> &migrated);
+int optimized_migrate(int today,int T,int totalOperation);
 
 void migrate(int today,int T,int opNum,int prePurchase);
 
@@ -1307,7 +1307,7 @@ int kday_deleted_migrate(int today, int T, int totalOperation, set<int> &migrate
     return totalOperation;
 }
 
-int optimized_migrate(int today, int T, int totalOperation, set<int> &migrated){
+int optimized_migrate(int today, int T, int totalOperation){
     // 在这一轮总共可以迁移的次数
 #ifdef DEBUG
     assert(mVmidToVirtualMachine.size() == VM_AMOUNT);
@@ -1351,7 +1351,7 @@ int optimized_migrate(int today, int T, int totalOperation, set<int> &migrated){
         int last = end;
         for (auto p : mServerHasVirtualMachine[fromServerId]) {
             int vmid = p.second;
-            if(migrated.find(vmid) != migrated.end() && mDeletedVmidInKDay.find(vmid) != mDeletedVmidInKDay.end() && mDeletedVmidInKDay[vmid] - today + 1 <= DayLimit){
+            if(mDeletedVmidInKDay.find(vmid) != mDeletedVmidInKDay.end() && mDeletedVmidInKDay[vmid] - today + 1 <= DayLimit){
                 continue;
             }
             VirtualMachine &vm = mVmidToVirtualMachine[vmid];
@@ -1403,7 +1403,6 @@ int optimized_migrate(int today, int T, int totalOperation, set<int> &migrated){
                 last -= 1;
             }
             if(targetServerIdx != -1){
-                migrated.insert(vmid);
                 vMigration.push_back(makeMigrateOutput(vmid,mLocalServerIdGlobalServerId[targetServerIdx],targetChoice));
                 // 迁移到新的服务器上
                 migrateVirtualMachineToServer(vmid, {targetServerIdx, targetChoice});
@@ -1444,17 +1443,21 @@ void solve(int startDay, int endDay, int T){
     //clear_small_server_migrate(today, T, totalMigration);
     //remMigration = optimized_migrate(today, T, totalMigration);
     set<int> migrated;
-    int remMigration = optimized_migrate(today, T, remMigration, migrated);
+    int remMigration = optimized_migrate(today, T, remMigration);
     remMigration = kday_deleted_migrate(today, T, totalMigration, migrated);
-    remMigration = optimized_migrate(today, T, remMigration, migrated);
+    remMigration = optimized_migrate(today, T, remMigration);
     remMigration = kday_deleted_migrate(today, T, totalMigration, migrated);
-    remMigration = optimized_migrate(today, T, remMigration, migrated);
+    remMigration = optimized_migrate(today, T, remMigration);
     remMigration = kday_deleted_migrate(today, T, totalMigration, migrated);
+    remMigration = optimized_migrate(today, T, remMigration);
+    remMigration = kday_deleted_migrate(today, T, totalMigration, migrated);
+    remMigration = optimized_migrate(today, T, remMigration);
+    remMigration = kday_deleted_migrate(today, T, totalMigration, migrated);
+    remMigration = optimized_migrate(today, T, remMigration);
 
     //migrate();
     set<int> todayaddvmid;   
     int bothCount = 0;
-    //vector<pair<VirtualMachineModel, int>> needPut;
     for (auto &op : vAllOperation[today]) {
         int vmid = op.id;
         VirtualMachineModel &vmd = mVmidToVirtualMachineModel[vmid];

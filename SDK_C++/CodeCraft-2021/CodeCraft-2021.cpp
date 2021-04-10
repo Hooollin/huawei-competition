@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
                     VirtualMachineModel &vmd = mVmidToVirtualMachineModel[op.id];
                     core -= vmd.core;
                     memory -= vmd.memory;
-                    sDeletedVmidInKDay.insert(op.id);
+                    mDeletedVmidInKDay[op.id] = r;
                 }
             }
             mDayToCoreAndMemory[r] = {core, memory};
