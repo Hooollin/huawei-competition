@@ -27,6 +27,8 @@ string
 -
 
 /Users/hollin/Documents/竞赛/huawei/SDK/SDK_C++/CodeCraft-2021/definition/StorageStructure.h
+vector
+-
 string
 -
 set
@@ -102,8 +104,6 @@ queue
 set
 -
 unordered_map
--
-stack
 -
 ./interaction.h
 /Users/hollin/Documents/竞赛/huawei/SDK/SDK_C++/CodeCraft-2021/function/interaction.h

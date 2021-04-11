@@ -7,7 +7,7 @@ from sko.tools import set_run_mode
 x = [0.4,0.3,0,0.3,0.1, 0,0.4,0,0.5,0.4,0.6,0.6,0.6]
 precision = [1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3]
 lowerbound = [0,0,0,0,0, 0,0,0,0,0,0,0,0]
-upperbound = [1,1,1,1,1, 1,1,1,1,1,0,0,0]
+upperbound = [1,1,1,1,1, 1,1,1,1,1,1,1,1]
 def tar_func(x):
     inf = 1e40
     timeout = 100
